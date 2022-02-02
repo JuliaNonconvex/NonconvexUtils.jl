@@ -3,6 +3,12 @@ uuid = "c48e48a2-1f5e-44ff-8799-c8e168d11d1b"
 authors = ["Mohamed Tarek <mohamed82008@gmail.com> and contributors"]
 version = "0.1.0"
 
+[deps]
+AbstractDifferentiation = "c29ec348-61ec-40c8-8164-b8c60e9d9f3d"
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
 [compat]
 julia = "1"
 
