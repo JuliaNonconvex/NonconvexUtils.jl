@@ -6,7 +6,8 @@ export  ForwardDiffFunction,
         TraceFunction,
         CustomGradFunction,
         LazyJacobian,
-        CustomHessianFunction
+        CustomHessianFunction,
+        ImplicitFunction
 
 using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
 
@@ -135,6 +136,43 @@ end
 function ChainRulesCore.rrule(f::CustomHessianFunction, x)
     g = CustomGradFunction(f.g, f.h)
     return f.f(x), Δ -> (NoTangent(), g(x) * Δ)
+end
+
+# Parameters x, variables y, residuals f
+struct ImplicitFunction{F, C, L, T} <: Function
+    # A function taking x as input and returning ystar as output such that f(x, ystar) = 0
+    forward::F
+    # The conditions function f(x, y) which must be 0
+    conditions::C
+    # A linear system solver
+    linear_solver::L
+    # The acceptable tolerance for f(x, y) to use the implicit function theorem
+    tol::T
+    # A booolean to error if the tolerance is violated, i.e. norm(f(x, ystar)) > tol
+    error_on_tol_violation::Bool
+end
+function ImplicitFunction(
+    forward, conditions; tol = 1e-5, error_on_tol_violation = false, linear_solver = (A, b) -> A \ b,
+)
+    return ImplicitFunction(
+        forward, conditions, linear_solver, tol, error_on_tol_violation,
+    )
+end
+
+(f::ImplicitFunction)(x) = f.forward(x)
+function ChainRulesCore.rrule(f::ImplicitFunction, x)
+    ystar = f(x)
+    residual = f.conditions(x, ystar)
+    dfdy = Zygote.jacobian(y -> f.conditions(x, y), ystar)[1]
+    residual, pbx = Zygote.pullback(x -> f.conditions(x, ystar), x)
+    return ystar, ∇ -> begin
+        if norm(residual) <= tol
+            return (NoTangent(), -pbx(f.linearsolver(dfdy', ∇))[1])
+        elseif f.error_on_tol_violation
+            throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
+        end
+        return (NoTangent(), (similar(x) .= NaN))
+    end
 end
 
 end
