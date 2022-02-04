@@ -1,5 +1,5 @@
 using NonconvexUtils, ForwardDiff, ReverseDiff, Tracker, Zygote
-using Test
+using Test, LinearAlgebra
 
 @testset "AbstractDiffFunction" begin
     global T = Nothing
@@ -71,9 +71,14 @@ end
 end
 
 @testset "CustomHessianFunction" begin
-    fakeH = rand(2, 2)
+    fakeH = [3.0 -1.0; -1.0 2.0]
     f = CustomHessianFunction(sum, x -> fakeg, x -> fakeH)
     fakeg = [2.0, 2.0]
     @test Zygote.gradient(f, [1.0, 1.0]) == (fakeg,)
     @test Zygote.jacobian(x -> Zygote.gradient(f, x)[1], [1.0, 1.0]) == (fakeH,)
+
+    hvp = (x, v) -> fakeH * v
+    f = CustomHessianFunction(sum, x -> fakeg, hvp; hvp = true)
+    H = Zygote.jacobian(x -> Zygote.gradient(f, x)[1], [1.0, 1.0])[1]
+    @test norm(H - fakeH) < 1e-6
 end
