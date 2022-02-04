@@ -128,7 +128,7 @@ struct CustomHessianFunction{F, G, H} <: Function
         f::F, g::G, h::H; hvp = false,
     ) where {F, G, H}
         _h = hvp ? x -> LazyJacobian{true}(v -> h(x, v)) : h
-        return CustomHessianFunction{F, G, H}(f, g, _h)
+        return new{F, G, H}(f, g, _h)
     end
 end
 (to::CustomHessianFunction)(x) = to.f(x)

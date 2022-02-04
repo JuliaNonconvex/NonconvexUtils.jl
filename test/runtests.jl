@@ -59,3 +59,21 @@ end
     Zygote.gradient(f, [3.0])
     @test f.trace == []
 end
+
+@testset "CustomGradFunction" begin
+    fakeg = [2.0]
+    f = CustomGradFunction(sum, x -> fakeg)
+    @test Zygote.gradient(f, [1.0]) == (fakeg,)
+
+    fakeJ = [1.0 2.0; 0.0 -1.0]
+    f = CustomGradFunction(identity, x -> fakeJ)
+    @test Zygote.jacobian(f, [1.0, 1.0]) == (fakeJ,)
+end
+
+@testset "CustomHessianFunction" begin
+    fakeH = rand(2, 2)
+    f = CustomHessianFunction(sum, x -> fakeg, x -> fakeH)
+    fakeg = [2.0, 2.0]
+    @test Zygote.gradient(f, [1.0, 1.0]) == (fakeg,)
+    @test Zygote.jacobian(x -> Zygote.gradient(f, x)[1], [1.0, 1.0]) == (fakeH,)
+end
