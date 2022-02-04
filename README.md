@@ -1,5 +1,8 @@
 # NonconvexUtils
 
+[![CI](https://github.com/JuliaNonconvex/NonconvexUtils.jl/workflows/CI/badge.svg?branch=master)](https://github.com/JuliaNonconvex/NonconvexUtils.jl/actions?query=workflow%3ACI)
+[![Coverage](https://codecov.io/gh/JuliaNonconvex/NonconvexUtils.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaNonconvex/NonconvexUtils.jl)
+
 Useful hacks for use in Nonconvex.jl.
 
 ## Hack #1: `AbstractDiffFunction` and `ForwardDiffFunction`
