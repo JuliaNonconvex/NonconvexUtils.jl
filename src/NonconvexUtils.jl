@@ -23,34 +23,45 @@ function ChainRulesCore.rrule(
     return v, Δ -> (NoTangent(), Δ * ∇)
 end
 
-struct TraceFunction{F1, F2} <: Function
-    f::F1
-    ∇f::F2
-    xtrace::Vector{Any}
-    ftrace::Vector{Any}
-    gtrace::Vector{Any}
+struct TraceFunction{F, V} <: Function
+    f::F
+    trace::V
     on_call::Bool
     on_grad::Bool
 end
-function TraceFunction(f, ∇f; on_call = false, on_grad = true)
-    return TraceFunction(f, ∇f, Any[], Any[], Any[], on_call, on_grad)
+function TraceFunction(f; on_call::Union{Bool, Nothing} = nothing, on_grad::Union{Bool, Nothing} = nothing)
+    if on_call === on_grad === nothing
+        _on_call = true
+        _on_grad = true
+    elseif on_call === nothing
+        _on_call = !on_grad
+        _on_grad = on_grad
+    elseif on_grad === nothing
+        _on_call = on_call
+        _on_grad = !on_call
+    else
+        _on_call = on_call
+        _on_grad = on_grad
+    end
+    return TraceFunction(f, Any[], _on_call, _on_grad)
 end
-function (to::TraceFunction)(x)
-    v = to.f(x)
-    if to.on_call
-        push!(f.xtrace, copy(x))
-        push!(f.ftrace, copy(v))
+function (tf::TraceFunction)(x)
+    v = tf.f(x)
+    if tf.on_call
+        push!(tf.trace, (input = copy(x), output = copy(v)))
     end
     return v
 end
-function ChainRulesCore.rrule(f::TraceFunction, x)
-    v, g = f.f(x), f.∇f(x)
-    if to.on_grad
-        push!(f.xtrace, copy(x))
-        push!(f.ftrace, copy(v))
-        push!(f.gtrace, copy(g))
+function ChainRulesCore.rrule(rc::RuleConfig, tf::TraceFunction, x)
+    v, pb = ChainRulesCore.rrule_via_ad(rc, tf.f, x)
+    return v, Δ -> begin
+        Δin = pb(Δ)
+        g = Δin[2].val.f()
+        if tf.on_grad
+            push!(tf.trace, (input = copy(x), output = copy(v), grad = copy(g)))
+        end
+        return (Δin[1], g)
     end
-    return v, Δ -> (NoTangent(), Δ * g)
 end
 
 struct LazyJacobian{symmetric, J1, J2}
