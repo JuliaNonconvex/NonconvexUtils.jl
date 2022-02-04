@@ -1,5 +1,6 @@
 using NonconvexUtils, ForwardDiff, ReverseDiff, Tracker, Zygote
-using Test, LinearAlgebra
+using Test, LinearAlgebra, SparseArrays, NLsolve, IterativeSolvers
+using StableRNGs
 
 @testset "AbstractDiffFunction" begin
     global T = Nothing
@@ -81,4 +82,33 @@ end
     f = CustomHessianFunction(sum, x -> fakeg, hvp; hvp = true)
     H = Zygote.jacobian(x -> Zygote.gradient(f, x)[1], [1.0, 1.0])[1]
     @test norm(H - fakeH) < 1e-6
+end
+
+@testset "Implicit function" begin
+    # Adapted from https://github.com/JuliaNLSolvers/NLsolve.jl/issues/205
+    rng = StableRNG(123)
+    nonlin = 0.1
+    function get_info(N)
+        N = 10
+        A = spdiagm(0 => fill(10.0, N), 1 => fill(-1.0, N-1), -1 => fill(-1.0, N-1))
+        p0 = randn(rng, N)
+        f = (p, x) -> A*x + nonlin*x.^2 - p
+        solve_x = (p) -> begin
+            return nlsolve(x -> f(p, x), zeros(N), method=:anderson, m=10).zero
+        end
+        g_analytic = gmres((A + Diagonal(2*nonlin*solve_x(p0)))', ones(N))
+        return solve_x, f, p0, g_analytic
+    end
+
+    solve_x, f, p0, g_analytic = get_info(10)
+    imf = ImplicitFunction(solve_x, f, matrixfree = false)
+    obj = p -> sum(imf(p))
+    g_auto = Zygote.gradient(obj, p0)[1]
+    @test norm(g_analytic - g_auto) < 1e-6
+
+    solve_x, f, p0, g_analytic = get_info(1000)
+    imf = ImplicitFunction(solve_x, f, matrixfree=true)
+    obj = p -> sum(imf(p))
+    g_auto = Zygote.gradient(obj, p0)[1]
+    @test norm(g_analytic - g_auto) < 1e-6
 end

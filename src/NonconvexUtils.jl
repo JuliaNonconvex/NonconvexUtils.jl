@@ -10,6 +10,7 @@ export  ForwardDiffFunction,
         ImplicitFunction
 
 using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
+using Zygote, LinearMaps, IterativeSolvers
 
 struct AbstractDiffFunction{F, B} <: Function
     f::F
@@ -139,35 +140,57 @@ function ChainRulesCore.rrule(f::CustomHessianFunction, x)
 end
 
 # Parameters x, variables y, residuals f
-struct ImplicitFunction{F, C, L, T} <: Function
+struct ImplicitFunction{matrixfree, F, C, L, T} <: Function
     # A function taking x as input and returning ystar as output such that f(x, ystar) = 0
     forward::F
-    # The conditions function f(x, y) which must be 0
+    # The conditions function f(x, y) which must be 0 at ystar
     conditions::C
-    # A linear system solver
+    # A linear system solver to solve df/dy' \ v
     linear_solver::L
-    # The acceptable tolerance for f(x, y) to use the implicit function theorem
+    # The acceptable tolerance for f(x, ystar) to use the implicit function theorem at x
     tol::T
-    # A booolean to error if the tolerance is violated, i.e. norm(f(x, ystar)) > tol
+    # A booolean to decide whether or not to error if the tolerance is violated, i.e. norm(f(x, ystar)) > tol. If false, we return a gradient of NaNs.
     error_on_tol_violation::Bool
 end
 function ImplicitFunction(
-    forward, conditions; tol = 1e-5, error_on_tol_violation = false, linear_solver = (A, b) -> A \ b,
-)
-    return ImplicitFunction(
+    forward::F, conditions::C; tol::T = 1e-5, error_on_tol_violation = false, matrixfree = true, linear_solver::L = _default_solver(matrixfree),
+) where {F, C, L, T}
+    return ImplicitFunction{matrixfree, F, C, L, T}(
         forward, conditions, linear_solver, tol, error_on_tol_violation,
     )
 end
 
+function _default_solver(matrixfree)
+    if matrixfree
+        return (A, b) -> begin
+            L = LinearMap(A, length(b))
+            return gmres(L, b)
+        end
+    else
+        return (A, b) -> A \ b
+    end
+end
+
 (f::ImplicitFunction)(x) = f.forward(x)
-function ChainRulesCore.rrule(f::ImplicitFunction, x)
+function ChainRulesCore.rrule(f::ImplicitFunction{matrixfree}, x) where {matrixfree}
     ystar = f(x)
     residual = f.conditions(x, ystar)
-    dfdy = Zygote.jacobian(y -> f.conditions(x, y), ystar)[1]
+    if matrixfree
+        _, _pby = Zygote.pullback(y -> f.conditions(x, y), ystar)
+        pby = v -> _pby(v)[1]
+        dfdy = nothing
+    else
+        pby = nothing
+        dfdy = Zygote.jacobian(y -> f.conditions(x, y), ystar)[1]
+    end
     residual, pbx = Zygote.pullback(x -> f.conditions(x, ystar), x)
     return ystar, ∇ -> begin
-        if norm(residual) <= tol
-            return (NoTangent(), -pbx(f.linearsolver(dfdy', ∇))[1])
+        if norm(residual) <= f.tol
+            if matrixfree
+                return (NoTangent(), -pbx(f.linear_solver(pby, ∇))[1])
+            else
+                return (NoTangent(), -pbx(f.linear_solver(dfdy', ∇))[1])
+            end
         elseif f.error_on_tol_violation
             throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
         end
