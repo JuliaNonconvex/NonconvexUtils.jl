@@ -84,8 +84,8 @@ end
     @test norm(H - fakeH) < 1e-6
 end
 
-@testset "Implicit function" begin
-    @testset "Vector input and output" begin
+@testset "Implicit functions" begin
+    @testset "Vector - Jacobian $jac - matrixfree $matrixfree" for jac in (false, true), matrixfree in (false, true)
         # Adapted from https://github.com/JuliaNLSolvers/NLsolve.jl/issues/205
         rng = StableRNG(123)
         nonlin = 0.1
@@ -95,20 +95,15 @@ end
             p0 = randn(rng, N)
             f = (p, x) -> A*x + nonlin*x.^2 - p
             solve_x = (p) -> begin
-                return nlsolve(x -> f(p, x), zeros(N), method=:anderson, m=10).zero, nothing
+                xstar = nlsolve(x -> f(p, x), zeros(N), method=:anderson, m=10).zero
+                return xstar, jac ? Zygote.jacobian(x -> f(p, x), xstar)[1] : nothing
             end
             g_analytic = gmres((A + Diagonal(2*nonlin*solve_x(p0)[1]))', ones(N))
             return solve_x, f, p0, g_analytic
         end
 
         solve_x, f, p0, g_analytic = get_info_vec(10)
-        imf = ImplicitFunction(solve_x, f, matrixfree = false)
-        obj = p -> sum(imf(p))
-        g_auto = Zygote.gradient(obj, p0)[1]
-        @test norm(g_analytic - g_auto) < 1e-6
-
-        solve_x, f, p0, g_analytic = get_info_vec(1000)
-        imf = ImplicitFunction(solve_x, f, matrixfree=true)
+        imf = ImplicitFunction(solve_x, f; matrixfree)
         obj = p -> sum(imf(p))
         g_auto = Zygote.gradient(obj, p0)[1]
         @test norm(g_analytic - g_auto) < 1e-6
@@ -129,16 +124,12 @@ end
             return solve_x, f, p0, g_analytic
         end
 
-        solve_x, f, p0, g_analytic = get_info_nonvec(10)
-        imf = ImplicitFunction(solve_x, f, matrixfree = false)
-        obj = p -> sum(imf(p).a)
-        g_auto = Zygote.gradient(obj, p0)[1]
-        @test norm(g_analytic.a - g_auto.a) < 1e-6
-
-        solve_x, f, p0, g_analytic = get_info_nonvec(1000)
-        imf = ImplicitFunction(solve_x, f, matrixfree=true)
-        obj = p -> sum(imf(p).a)
-        g_auto = Zygote.gradient(obj, p0)[1]
-        @test norm(g_analytic.a - g_auto.a) < 1e-6        
+        for matrixfree in (false, true)
+            solve_x, f, p0, g_analytic = get_info_nonvec(10)
+            imf = ImplicitFunction(solve_x, f, matrixfree = false)
+            obj = p -> sum(imf(p).a)
+            g_auto = Zygote.gradient(obj, p0)[1]
+            @test norm(g_analytic.a - g_auto.a) < 1e-6
+        end
     end
 end
