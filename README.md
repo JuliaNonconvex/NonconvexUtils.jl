@@ -53,3 +53,42 @@ If instead of `∇²f`, you only have access to a Hessian-vector product functio
 ```julia
 g = CustomHessianFunction(f, ∇f, hvp; hvp = true)
 ```
+
+## Hack #5: `ImplicitFunction`
+
+Differentiating implicit functions efficiently using the implicit function theorem has many applications in nonlinear partial differential equation constrained optimization, differentiable optimization layers in deep learning (aka deep declarative layers), differentiable fixed point iteration algorithms for optimal transport (e.g. the Sinkhorn methods), gradient-based bi-level and robust optimization (aka anti-optimization) and multi-parameteric programming.
+
+There are 4 components to any implicit function:
+1. The parameters `p`
+2. The variables `x`
+3. The residual `f(p, x)` which is used to define `x(p)` as the `x` which satisfies `f(p, x) == 0` for a given value `p`
+4. The algorithm used to evaluate `x(p)` satisfying the condition `f(p, x)`
+
+In order to define a differentiable implicit function using `NonconvexUtils`, you have to specify the "forward" algorithm which finds `x(p)`. For instance, consider the following example:
+```julia
+using SparseArrays, NLsolve, Zygote, NonconvexUtils
+
+N = 10
+A = spdiagm(0 => fill(10.0, N), 1 => fill(-1.0, N-1), -1 => fill(-1.0, N-1))
+p0 = randn(N)
+
+f(p, x) = A * x + 0.1 * x.^2 - p
+function forward(p)
+  # Solving nonlinear system of equations
+  sol = nlsolve(x -> f(p, x), zeros(N), method = :anderson, m = 10)
+  # Return the zero found (ignore the second returned value for now)
+  return sol.zero, nothing
+end
+```
+`forward` above solves for `x` in the nonlinear system of equations `f(p, x)` given the value of `p`. In this case, the residual function is the same as the function `f` used in the forward pass. One can then use the 2 functions `forward` and `f` to define an implicit function using:
+```julia
+imf = ImplicitFunction(forward, f)
+xstar = imf(p0)
+```
+where `imf(p0)` solves the nonlinear system for `p = p0` and returns the zero `xstar` of the nonlinear system. This function can now be part of any arbitrary Julia function differentiated by Zygote, e.g. it can be part of an objective function in an optimization problem using gradient-based optimization:
+```julia
+obj(p) = sum(imf(p))
+g = Zygote.gradient(obj, p0)[1]
+```
+
+In the implicit function's adjoint rule definition the partial Jacobian `∂f/∂x` is used according to the implicit function theorem. Often this Jacobian or a good approximation of it might be a by-product of the `forward` function. For example when the `forward` function does an optimization using a BFGS-based approximation of the Hessian of the Lagrangian function, the final BFGS approximation can be a good approximation of `∂f/∂x` where the residual `f` is the gradient of the Lagrangian function wrt `x`. In those cases, this Jacobian by-product can be returned as the second argument from `forward` instead of `nothing`.
