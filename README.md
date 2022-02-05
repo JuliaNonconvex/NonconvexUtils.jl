@@ -16,7 +16,7 @@ If you want to use [`ForwardDiff.jl`](https://github.com/JuliaDiff/ForwardDiff.j
 ```julia
 g = ForwardDiffFunction(f)
 ```
-which is short for to:
+which is short for:
 ```julia
 AbstractDiffFunction(f, AbstractDifferentiation.ForwardDiffBackend())
 ```
