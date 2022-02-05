@@ -10,7 +10,8 @@ export  ForwardDiffFunction,
         ImplicitFunction
 
 using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
-using Zygote, LinearMaps, IterativeSolvers
+using Zygote, LinearMaps, IterativeSolvers, NonconvexCore
+using NonconvexCore: flatten
 
 struct AbstractDiffFunction{F, B} <: Function
     f::F
@@ -141,9 +142,9 @@ end
 
 # Parameters x, variables y, residuals f
 struct ImplicitFunction{matrixfree, F, C, L, T} <: Function
-    # A function taking x as input and returning ystar as output such that f(x, ystar) = 0
+    # A function which takes x as input and returns a tuple (ystar, df/dy) such that f(x, ystar) = 0. df/dy is optional and can be replaced by nothing to compute it via automatic differentiation. Jacobian should only be returned if it's more cheaply available than using AD, e.g. when using BFGS approximation of the Hessian in IPOPT.
     forward::F
-    # The conditions function f(x, y) which must be 0 at ystar
+    # The conditions function f(x, y) which must be 0 at ystar. Note that variables which don't show up in x and are closed over instead will be assumed to have no effect on the optimal solution. So it's the user's responsibility to ensure x includes all the interesting variables to be differentiated with respect to.
     conditions::C
     # A linear system solver to solve df/dy' \ v
     linear_solver::L
@@ -153,7 +154,7 @@ struct ImplicitFunction{matrixfree, F, C, L, T} <: Function
     error_on_tol_violation::Bool
 end
 function ImplicitFunction(
-    forward::F, conditions::C; tol::T = 1e-5, error_on_tol_violation = false, matrixfree = true, linear_solver::L = _default_solver(matrixfree),
+    forward::F, conditions::C; tol::T = 1e-5, error_on_tol_violation = false, matrixfree = false, linear_solver::L = _default_solver(matrixfree),
 ) where {F, C, L, T}
     return ImplicitFunction{matrixfree, F, C, L, T}(
         forward, conditions, linear_solver, tol, error_on_tol_violation,
@@ -171,30 +172,51 @@ function _default_solver(matrixfree)
     end
 end
 
-(f::ImplicitFunction)(x) = f.forward(x)
-function ChainRulesCore.rrule(f::ImplicitFunction{matrixfree}, x) where {matrixfree}
-    ystar = f(x)
-    residual = f.conditions(x, ystar)
-    if matrixfree
-        _, _pby = Zygote.pullback(y -> f.conditions(x, y), ystar)
-        pby = v -> _pby(v)[1]
-        dfdy = nothing
+(f::ImplicitFunction)(x) = f.forward(x)[1]
+function ChainRulesCore.rrule(
+    rc::RuleConfig, f::ImplicitFunction{matrixfree}, x,
+) where {matrixfree}
+    flat_x, unflatten_x = flatten(x)
+    ystar, _dfdy = f.forward(x)
+    flat_ystar, unflatten_y = flatten(ystar)
+    forward_returns_jacobian = _dfdy !== nothing
+    if forward_returns_jacobian
+        dfdy = _dfdy
+        if matrixfree
+            # y assumed flat if dfdy is passed in
+            pby = v -> dfdy' * v
+        else
+            pby = nothing
+        end
     else
-        pby = nothing
-        dfdy = Zygote.jacobian(y -> f.conditions(x, y), ystar)[1]
+        _conditions_y = flat_y -> begin
+            return flatten(f.conditions(x, unflatten_y(flat_y)))[1]
+        end
+        if matrixfree
+            dfdy = nothing
+            _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
+            pby = v -> _pby(v)[2]
+        else
+            # Change this to AbstractDifferentiation
+            dfdy = Zygote.jacobian(_conditions_y, flat_ystar)[1]
+            pby = nothing
+        end
     end
-    residual, pbx = Zygote.pullback(x -> f.conditions(x, ystar), x)
+    _conditions_x = x -> begin
+        return flatten(f.conditions(x, ystar))[1]
+    end
+    residual, pbx = rrule_via_ad(rc, _conditions_x, x)
     return ystar, ∇ -> begin
         if norm(residual) <= f.tol
             if matrixfree
-                return (NoTangent(), -pbx(f.linear_solver(pby, ∇))[1])
+                return (NoTangent(), pbx(f.linear_solver(pby, -flatten(∇)[1]))[2])
             else
-                return (NoTangent(), -pbx(f.linear_solver(dfdy', ∇))[1])
+                return (NoTangent(), pbx(f.linear_solver(dfdy', -flatten(∇)[1]))[2])
             end
         elseif f.error_on_tol_violation
             throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
         end
-        return (NoTangent(), (similar(x) .= NaN))
+        return (NoTangent(), unflatten_x(similar(flat_x) .= NaN))
     end
 end
 

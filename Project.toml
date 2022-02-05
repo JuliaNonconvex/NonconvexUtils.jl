@@ -10,6 +10,7 @@ ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
+NonconvexCore = "035190e5-69f1-488f-aaab-becca2889735"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
@@ -18,6 +19,7 @@ ChainRulesCore = "1"
 ForwardDiff = "0.10"
 IterativeSolvers = "0.8, 0.9"
 LinearMaps = "3"
+NonconvexCore = "1"
 Zygote = "0.5, 0.6"
 julia = "1"
 
