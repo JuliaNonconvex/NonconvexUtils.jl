@@ -58,7 +58,12 @@ g = CustomHessianFunction(f, ∇f, hvp; hvp = true)
 
 ### Explicit parameters
 
-Differentiating implicit functions efficiently using the implicit function theorem has many applications in nonlinear partial differential equation constrained optimization, differentiable optimization layers in deep learning (aka deep declarative layers), differentiable fixed point iteration algorithms for optimal transport (e.g. the Sinkhorn methods), gradient-based bi-level and robust optimization (aka anti-optimization) and multi-parameteric programming.
+Differentiating implicit functions efficiently using the implicit function theorem has many applications including:
+- Nonlinear partial differential equation constrained optimization
+- Differentiable optimization layers in deep learning (aka deep declarative networks)
+- Differentiable fixed point iteration algorithms for optimal transport (e.g. the Sinkhorn methods)
+- Gradient-based bi-level and robust optimization (aka anti-optimization)
+- Multi-parameteric programming (aka optimization sensitivity analysis)
 
 There are 4 components to any implicit function:
 1. The parameters `p`
@@ -93,7 +98,7 @@ obj(p) = sum(imf(p))
 g = Zygote.gradient(obj, p0)[1]
 ```
 
-In the implicit function's adjoint rule definition the partial Jacobian `∂f/∂x` is used according to the implicit function theorem. Often this Jacobian or a good approximation of it might be a by-product of the `forward` function. For example when the `forward` function does an optimization using a BFGS-based approximation of the Hessian of the Lagrangian function, the final BFGS approximation can be a good approximation of `∂f/∂x` where the residual `f` is the gradient of the Lagrangian function wrt `x`. In those cases, this Jacobian by-product can be returned as the second argument from `forward` instead of `nothing`.
+In the implicit function's adjoint rule definition, the partial Jacobian `∂f/∂x` is used according to the implicit function theorem. Often this Jacobian or a good approximation of it might be a by-product of the `forward` function. For example when the `forward` function does an optimization using a BFGS-based approximation of the Hessian of the Lagrangian function, the final BFGS approximation can be a good approximation of `∂f/∂x` where the residual `f` is the gradient of the Lagrangian function wrt `x`. In those cases, this Jacobian by-product can be returned as the second argument from `forward` instead of `nothing`.
 
 ### Implicit parameters
 
