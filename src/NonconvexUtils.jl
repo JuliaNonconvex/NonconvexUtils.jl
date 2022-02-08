@@ -173,10 +173,11 @@ function _default_solver(matrixfree)
 end
 
 (f::ImplicitFunction)(x) = f.forward(x)[1]
+(f::ImplicitFunction)() = f.forward()[1]
+
 function ChainRulesCore.rrule(
     rc::RuleConfig, f::ImplicitFunction{matrixfree}, x,
 ) where {matrixfree}
-    flat_x, unflatten_x = flatten(x)
     ystar, _dfdy = f.forward(x)
     flat_ystar, unflatten_y = flatten(ystar)
     forward_returns_jacobian = _dfdy !== nothing
@@ -202,22 +203,89 @@ function ChainRulesCore.rrule(
             pby = nothing
         end
     end
-    _conditions_x = x -> begin
-        return flatten(f.conditions(x, ystar))[1]
+    _conditions_x = (conditions, x) -> begin
+        return flatten(conditions(x, ystar))[1]
     end
-    residual, pbx = rrule_via_ad(rc, _conditions_x, x)
+    residual, pbx = rrule_via_ad(rc, _conditions_x, f.conditions, x)
     return ystar, ∇ -> begin
-        if norm(residual) <= f.tol
-            if matrixfree
-                return (NoTangent(), pbx(f.linear_solver(pby, -flatten(∇)[1]))[2])
-            else
-                return (NoTangent(), pbx(f.linear_solver(dfdy', -flatten(∇)[1]))[2])
-            end
-        elseif f.error_on_tol_violation
+        if norm(residual) > f.tol && f.error_on_tol_violation
             throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
         end
-        return (NoTangent(), unflatten_x(similar(flat_x) .= NaN))
+        if matrixfree
+            ∇f, ∇x = Base.tail(pbx(f.linear_solver(pby, -flatten(∇)[1])))
+        else
+            ∇f, ∇x = Base.tail(pbx(f.linear_solver(dfdy', -flatten(∇)[1])))
+        end
+        ∇imf = Tangent{typeof(f)}(
+            conditions = Tangent{typeof(f.conditions)}(;
+                ChainRulesCore.backing(∇f)...,
+            ),
+        )
+        if norm(residual) <= f.tol
+            return (∇imf, ∇x)
+        else
+            return (nanlike(∇imf), nanlike(∇x))
+        end
     end
+end
+
+function ChainRulesCore.rrule(
+    rc::RuleConfig, f::ImplicitFunction{matrixfree},
+) where {matrixfree}
+    ystar, _dfdy = f.forward()
+    flat_ystar, unflatten_y = flatten(ystar)
+    forward_returns_jacobian = _dfdy !== nothing
+    if forward_returns_jacobian
+        dfdy = _dfdy
+        if matrixfree
+            # y assumed flat if dfdy is passed in
+            pby = v -> dfdy' * v
+        else
+            pby = nothing
+        end
+    else
+        _conditions_y = flat_y -> begin
+            return flatten(f.conditions(unflatten_y(flat_y)))[1]
+        end
+        if matrixfree
+            dfdy = nothing
+            _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
+            pby = v -> _pby(v)[2]
+        else
+            # Change this to AbstractDifferentiation
+            dfdy = Zygote.jacobian(_conditions_y, flat_ystar)[1]
+            pby = nothing
+        end
+    end
+    _conditions = (conditions) -> begin
+        return flatten(conditions(ystar))[1]
+    end
+    residual, pbf = rrule_via_ad(rc, _conditions, f.conditions)
+    return ystar, ∇ -> begin
+        if norm(residual) > f.tol && f.error_on_tol_violation
+            throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
+        end
+        if matrixfree
+            ∇f = pbf(f.linear_solver(pby, -flatten(∇)[1]))[2]
+        else
+            ∇f = pbf(f.linear_solver(dfdy', -flatten(∇)[1]))[2]
+        end
+        ∇imf = Tangent{typeof(f)}(
+            conditions = Tangent{typeof(f.conditions)}(;
+                ChainRulesCore.backing(∇f)...,
+            ),
+        )
+        if norm(residual) <= f.tol
+            return (∇imf,)
+        else
+            return (nanlike(∇imf),)
+        end
+    end
+end
+
+function nanlike(x)
+    flat, un = flatten(x)
+    return un(similar(flat) .= NaN)
 end
 
 end
