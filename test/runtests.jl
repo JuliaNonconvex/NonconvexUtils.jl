@@ -1,6 +1,6 @@
 using NonconvexUtils, ForwardDiff, ReverseDiff, Tracker, Zygote
 using Test, LinearAlgebra, SparseArrays, NLsolve, IterativeSolvers
-using StableRNGs
+using StableRNGs, ChainRulesCore
 
 @testset "AbstractDiffFunction" begin
     global T = Nothing
