@@ -264,3 +264,34 @@ end
         end
     end
 end
+
+@testset "ForwardDiff frule" begin
+    f1(x, y) = x + y
+    frule_count = 0
+    function ChainRulesCore.frule((_, Δx1, Δx2), ::typeof(f1), x1, x2)
+        frule_count += 1
+        return f1(x1, x2), Δx1 + Δx2
+    end
+    NonconvexUtils.@ForwardDiff_frule f1(x1::ForwardDiff.Dual, x2::ForwardDiff.Dual)
+    g1 = ForwardDiff.gradient(x -> f1(x[1], x[2]), rand(2))
+    @test frule_count == 2
+    g2 = Zygote.gradient(x -> f1(x[1], x[2]), rand(2))[1]
+    @test g1 == g2
+
+    NonconvexUtils.@ForwardDiff_frule f1(x1::AbstractVector{<:ForwardDiff.Dual}, x2::AbstractVector{<:ForwardDiff.Dual})
+    g1 = ForwardDiff.gradient(x -> sum(f1(x[1:2], x[3:4])), rand(4))
+    @test frule_count == 6
+    g2 = Zygote.gradient(x -> sum(f1(x[1:2], x[3:4])), rand(4))[1]
+    @test g1 == g2
+
+    j1 = ForwardDiff.jacobian(x -> f1(x[1:2], x[3:4]), rand(4))
+    @test frule_count == 10
+    j2 = Zygote.jacobian(x -> f1(x[1:2], x[3:4]), rand(4))[1]
+    @test g1 == g2
+
+    NonconvexUtils.@ForwardDiff_frule f1(x1::AbstractMatrix{<:ForwardDiff.Dual}, x2::AbstractMatrix{<:ForwardDiff.Dual})
+    g1 = ForwardDiff.gradient(x -> sum(f1(x[1:2,1:2], x[3:4,3:4])), rand(4, 4))
+    @test frule_count == 26
+    g2 = Zygote.gradient(x -> sum(f1(x[1:2,1:2], x[3:4,3:4])), rand(4, 4))[1]
+    @test g1 == g2
+end
