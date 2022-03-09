@@ -289,16 +289,6 @@ function nanlike(x)
     return un(similar(flat) .= NaN)
 end
 
-# Test
-## Multiple arguments
-## Single argument
-## Chunk size of 1
-## Multiple chunk sizes
-## Multiple outputs
-## Struct input
-## Struct output
-## Functor f - fix first
-
 macro ForwardDiff_frule(sig)
     _fd_frule(sig)
 end
