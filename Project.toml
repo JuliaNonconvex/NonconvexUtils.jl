@@ -26,6 +26,7 @@ Zygote = "0.5, 0.6"
 julia = "1"
 
 [extras]
+NamedTupleTools = "d9ec5142-1e00-5aa0-9d6a-321866360f50"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -34,4 +35,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [targets]
-test = ["NLsolve", "ReverseDiff", "SparseArrays", "StableRNGs", "Test", "Tracker"]
+test = ["NamedTupleTools", c"NLsolve", "ReverseDiff", "SparseArrays", "StableRNGs", "Test", "Tracker"]
