@@ -266,8 +266,6 @@ end
 end
 
 # TODO tests:
-## Chunk size of 1
-## Multiple chunk sizes
 ## Multiple outputs
 ## Struct output
 ## Functor f - fix first
@@ -334,43 +332,66 @@ end
         _f(rand(2))
         g1 = ForwardDiff.gradient(_f, rand(2))
         @test frule_count == 2
-        g2 = Zygote.gradient(_f, rand(2))[1]
-        @test g1 == g2
+        cfg = ForwardDiff.GradientConfig(_f, rand(2), ForwardDiff.Chunk{2}())
+        g2 = ForwardDiff.gradient(_f, rand(2), cfg)
+        @test frule_count == 4
+        g3 = Zygote.gradient(_f, rand(2))[1]
+        @test g1 == g2 == g3
     end
     frule_count = 0
     @testset "2 vector inputs - 1 real output" begin
-        g1 = ForwardDiff.gradient(x -> sum(f1(x[1:2], x[3:4])), rand(4))
+        _f = x -> sum(f1(x[1:2], x[3:4]))
+        g1 = ForwardDiff.gradient(_f, rand(4))
         @test frule_count == 4
-        g2 = Zygote.gradient(x -> sum(f1(x[1:2], x[3:4])), rand(4))[1]
-        @test g1 == g2
+        cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
+        g2 = ForwardDiff.gradient(_f, rand(4), cfg)
+        @test frule_count == 8
+        g3 = Zygote.gradient(_f, rand(4))[1]
+        @test g1 == g2 == g3
     end
     frule_count = 0
     @testset "2 vector inputs - 1 vector output" begin
-        j1 = ForwardDiff.jacobian(x -> f1(x[1:2], x[3:4]), rand(4))
+        _f = x -> f1(x[1:2], x[3:4])
+        j1 = ForwardDiff.jacobian(_f, rand(4))
         @test frule_count == 4
-        j2 = Zygote.jacobian(x -> f1(x[1:2], x[3:4]), rand(4))[1]
-        @test j1 == j2
+        cfg = ForwardDiff.JacobianConfig(_f, rand(4), ForwardDiff.Chunk{2}())
+        j2 = ForwardDiff.jacobian(_f, rand(4), cfg)
+        @test frule_count == 8
+        j3 = Zygote.jacobian(_f, rand(4))[1]
+        @test j1 == j2 == j3
     end
     frule_count = 0
     @testset "2 matrix inputs - 1 real output" begin
-        g1 = ForwardDiff.gradient(x -> sum(f1(x[1:2,1:2], x[3:4,3:4])), rand(4, 4))
+        _f = x -> sum(f1(x[1:2,1:2], x[3:4,3:4]))
+        g1 = ForwardDiff.gradient(_f, rand(4, 4))
         @test frule_count == 16
-        g2 = Zygote.gradient(x -> sum(f1(x[1:2,1:2], x[3:4,3:4])), rand(4, 4))[1]
-        @test g1 == g2
+        cfg = ForwardDiff.GradientConfig(_f, rand(4, 4), ForwardDiff.Chunk{2}())
+        g2 = ForwardDiff.gradient(_f, rand(4, 4), cfg)
+        @test frule_count == 32
+        g3 = Zygote.gradient(_f, rand(4, 4))[1]
+        @test g1 == g2 == g3
     end
     frule_count = 0
     @testset "2 NamedTuple inputs - 1 real output" begin
-        g1 = ForwardDiff.gradient(x -> sum(f2((a = x[1], b = x[2]), (a = x[3], b = x[4]))), rand(4))
+        _f = x -> sum(f2((a = x[1], b = x[2]), (a = x[3], b = x[4])))
+        g1 = ForwardDiff.gradient(_f, rand(4))
         @test frule_count == 4
-        g2 = Zygote.gradient(x -> sum(f2((a = x[1], b = x[2]), (a = x[3], b = x[4]))), rand(4))[1]
-        @test g1 == g2
+        cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
+        g2 = ForwardDiff.gradient(_f, rand(4))
+        @test frule_count == 8
+        g3 = Zygote.gradient(_f, rand(4))[1]
+        @test g1 == g2 == g3
     end
     frule_count = 0
     @testset "2 struct inputs - 1 real output" begin
-        g1 = ForwardDiff.gradient(x -> sum(f2(MyStruct(x[1], x[2]), MyStruct(x[3], x[4]))), rand(4))
+        _f = x -> sum(f2(MyStruct(x[1], x[2]), MyStruct(x[3], x[4])))
+        g1 = ForwardDiff.gradient(_f, rand(4))
         @test frule_count == 4
-        g2 = Zygote.gradient(x -> sum(f2(MyStruct(x[1], x[2]), MyStruct(x[3], x[4]))), rand(4))[1]
-        @test g1 == g2
+        cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
+        g2 = ForwardDiff.gradient(_f, rand(4))
+        @test frule_count == 8
+        g3 = Zygote.gradient(_f, rand(4))[1]
+        @test g1 == g2 == g3
     end
     frule_count = 0
     @testset "eigvals" begin
