@@ -60,7 +60,7 @@ function ChainRulesCore.rrule(rc::RuleConfig, tf::TraceFunction, x)
     v, pb = ChainRulesCore.rrule_via_ad(rc, tf.f, x)
     return v, Δ -> begin
         Δin = pb(Δ)
-        g = Δin[2].val.f()
+        g = Δin[2] isa Array ? Δin[2] : Δin[2].val.f()
         if tf.on_grad
             push!(tf.trace, (input = copy(x), output = copy(v), grad = copy(g)))
         end
