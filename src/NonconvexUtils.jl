@@ -23,8 +23,8 @@ ForwardDiffFunction(f) = AbstractDiffFunction(f, AD.ForwardDiffBackend())
 function ChainRulesCore.rrule(
     f::AbstractDiffFunction, x::AbstractVector,
 )
-    v, (∇,) = AbstractDifferentiation.value_and_gradient(f.backend, f.f, x)
-    return v, Δ -> (NoTangent(), Δ * ∇)
+    v, (∇,) = AbstractDifferentiation.value_and_jacobian(f.backend, f.f, x)
+    return v, Δ -> (NoTangent(), ∇' * Δ)
 end
 
 struct TraceFunction{F, V} <: Function
