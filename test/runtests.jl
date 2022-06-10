@@ -4,21 +4,41 @@ using StableRNGs, ChainRulesCore, NonconvexCore
 
 @testset "AbstractDiffFunction" begin
     global T = Nothing
-    f = function (x)
-        global T = eltype(x)
-        return sum(x)
+    @testset "Scalar-valued" begin
+        f = function (x)
+            global T = eltype(x)
+            return sum(x)
+        end
+        _f = ForwardDiffFunction(f)
+        Zygote.gradient(_f, [1.0, 1.0])
+        @test T <: ForwardDiff.Dual
+
+        _f = AbstractDiffFunction(f, AD.ReverseDiffBackend())
+        Zygote.gradient(_f, [1.0, 1.0])
+        @test T <: ReverseDiff.TrackedReal
+
+        _f = AbstractDiffFunction(f, AD.TrackerBackend())
+        Zygote.gradient(_f, [1.0, 1.0])
+        @test T <: Tracker.TrackedReal
     end
-    _f = ForwardDiffFunction(f)
-    Zygote.gradient(_f, [1.0, 1.0])
-    @test T <: ForwardDiff.Dual
+    @testset "Vector-valued" begin
+        global T = Nothing
+        f = function (x)
+            global T = eltype(x)
+            return 2x
+        end
+        _f = ForwardDiffFunction(f)
+        Zygote.jacobian(_f, [1.0, 1.0])
+        @test T <: ForwardDiff.Dual
 
-    _f = AbstractDiffFunction(f, AD.ReverseDiffBackend())
-    Zygote.gradient(_f, [1.0, 1.0])
-    @test T <: ReverseDiff.TrackedReal
+        _f = AbstractDiffFunction(f, AD.ReverseDiffBackend())
+        Zygote.jacobian(_f, [1.0, 1.0])
+        @test T <: ReverseDiff.TrackedReal
 
-    _f = AbstractDiffFunction(f, AD.TrackerBackend())
-    Zygote.gradient(_f, [1.0, 1.0])
-    @test T <: Tracker.TrackedReal
+        _f = AbstractDiffFunction(f, AD.TrackerBackend())
+        Zygote.jacobian(_f, [1.0, 1.0])
+        @test T <: Tracker.TrackedReal
+    end
 end
 
 @testset "TraceFunction" begin
