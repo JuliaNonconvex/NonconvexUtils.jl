@@ -47,8 +47,6 @@ Zygote.jacobian(x -> Zygote.gradient(f, x)[1], x)
 ```
 It is on the user to ensure that the custom Hessian is always a symmetric matrix.
 
-Note that one has to use `Zygote` for both levels of differentiation for this to work which makes it currently impossible to use in Nonconvex.jl directly, e.g. with IPOPT, because Nonconvex.jl uses ForwardDiff.jl for the second order differentiation, but this will be fixed soon by making more use of `AbstractDifferentiation` when it gets a `ZygoteBackend` implemented.
-
 If instead of `∇²f`, you only have access to a Hessian-vector product function `hvp` which takes 2 inputs: `x` (the input to `f`) and `v` (the vector to multiply the Hessian `H` by), and returns `H * v`, you can use this as follows:
 ```julia
 g = CustomHessianFunction(f, ∇f, hvp; hvp = true)
