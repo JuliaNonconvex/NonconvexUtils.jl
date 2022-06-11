@@ -9,7 +9,9 @@ export  ForwardDiffFunction,
         CustomHessianFunction,
         ImplicitFunction,
         SymbolicFunction,
-        SparseForwardDiffFunction
+        SparseForwardDiffFunction,
+        sparsify,
+        symbolify
 
 using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
 using Zygote, LinearMaps, IterativeSolvers, NonconvexCore, SparseArrays

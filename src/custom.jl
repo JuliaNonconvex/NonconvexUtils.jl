@@ -16,7 +16,16 @@ end
 function ChainRulesCore.frule(
     (_, Δx), f::CustomGradFunction, x::AbstractVector,
 )
-    v, ∇ = f.f(x), f.g(x)
+    v = f.f(x)
+    if f.g === nothing
+        if v isa Real
+            ∇ = zeros(eltype(v), length(x))'
+        else
+            ∇ = zeros(eltype(v), length(v), length(x))
+        end
+    else
+        ∇ = f.g(x)
+    end
     if ∇ isa AbstractVector && Δx isa AbstractVector
         if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
             return v, zero(eltype(Δx))
