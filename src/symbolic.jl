@@ -4,31 +4,64 @@ struct SymbolicFunction{F, G, H, X} <: Function
     h::H
     x::X
 end
-function SymbolicFunction(f, _x::AbstractVector; hessian = false)
+
+function SymbolicFunction(f, _x::AbstractVector; hessian = false, sparse = false, simplify = false)
     N = length(_x)
     val = f(_x)
+    _T = eltype(val)
+    T = x -> begin
+        if (eltype(x) <: Symbolics.Num) || eltype(x) === _T || !(x isa Real) && (issparse(x) && nnz(x) == 0 || isempty(x))
+            return x
+        else
+            return _T.(x)
+        end
+    end
     Symbolics.@variables x[1:N]
     if val isa Real
-        sgrad = Symbolics.jacobian([f(x)], x)
-        f_expr = Symbolics.build_function(sgrad, x)[1]
-        _g = eval(f_expr)
-        g = x -> vec(_g(x))
+        if sparse
+            sgrad = Symbolics.sparsejacobian([f(x)], x; simplify)
+            f_expr = Symbolics.build_function(sgrad, x)[1]
+            _g = eval(f_expr)
+            g = x -> vec(Matrix(T(_g(x))))
+        else
+            sgrad = Symbolics.jacobian([f(x)], x; simplify)
+            f_expr = Symbolics.build_function(sgrad, x)[1]
+            _g = eval(f_expr)
+            g = x -> vec(T(_g(x)))
+        end
         if hessian
-            shess = Symbolics.jacobian(Base.invokelatest(g, x), x)
+            if sparse
+                shess = Symbolics.sparsejacobian(Base.invokelatest(g, x), x; simplify)
+            else
+                shess = Symbolics.jacobian(Base.invokelatest(g, x), x; simplify)
+            end
             h_expr = Symbolics.build_function(shess, x)[1]
-            h = eval(h_expr)
+            _h = eval(h_expr)
+            h = x -> T(_h(x))
         else
             h = nothing
         end
     else
-        sjac = Symbolics.jacobian(f(x), x)
-        f_expr = Symbolics.build_function(sjac, x)[1]
-        g = eval(f_expr)
+        if sparse
+            sjac = Symbolics.sparsejacobian(f(x), x; simplify)
+            f_expr = Symbolics.build_function(sjac, x)[1]
+            _g = eval(f_expr)
+            g = x -> Matrix(T(_g(x)))
+        else
+            sjac = Symbolics.jacobian(f(x), x; simplify)
+            f_expr = Symbolics.build_function(sjac, x)[1]
+            _g = eval(f_expr)
+            g = x -> T(_g(x))
+        end
         if hessian
-            shess = Symbolics.jacobian(vec(Base.invokelatest(g, x)), x)
+            if sparse
+                shess = Symbolics.sparsejacobian(vec(Base.invokelatest(g, x)), x; simplify)
+            else
+                shess = Symbolics.jacobian(vec(Base.invokelatest(g, x)), x; simplify)
+            end
             h_expr = Symbolics.build_function(shess, x)[1]
             _h = eval(h_expr)
-            h = x -> reshape(_h(x), length(val), N, N)
+            h = x -> reshape(T(_h(x)), length(val), N, N)
         else
             h = nothing
         end

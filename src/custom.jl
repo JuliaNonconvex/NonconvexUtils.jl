@@ -18,9 +18,17 @@ function ChainRulesCore.frule(
 )
     v, ∇ = f.f(x), f.g(x)
     if ∇ isa AbstractVector && Δx isa AbstractVector
-        return v, ∇' * Δx
+        if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
+            return v, zero(eltype(Δx))
+        else
+            return v, ∇' * Δx
+        end
     else
-        return v, ∇ * Δx
+        if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
+            return v, zeros(eltype(Δx), size(∇, 1))
+        else
+            return v, ∇ * Δx
+        end
     end
 end
 @ForwardDiff_frule (f::CustomGradFunction)(x::AbstractVector{<:ForwardDiff.Dual})
