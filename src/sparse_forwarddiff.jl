@@ -13,9 +13,8 @@ struct SparseForwardDiffFunction{F, F!, Y, J, JP, JC, JJ, JJ!, G, H, HP, HC} <: 
     hess_colors::HC
 end
 
-function SparseForwardDiffFunction(f, _x::AbstractVector; hessian = false, jac_pattern = nothing, hess_pattern = nothing)
-    N = length(_x)
-    val = f(_x)
+function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pattern = nothing, hess_pattern = nothing)
+    val = f(x)
     _f = val isa Real ? x -> [f(x)] : f
     f! = (y, x) -> begin
         v = f(x)
@@ -23,14 +22,7 @@ function SparseForwardDiffFunction(f, _x::AbstractVector; hessian = false, jac_p
         return y
     end
     y = val isa Real ? [val] : copy(val)
-
-    Symbolics.@variables x[1:N]
-    if val isa Real
-        vsyms = [f(x)]
-    else
-        vsyms = f(x)
-    end
-    jac_pattern = jac_pattern === nothing ? Symbolics.jacobian_sparsity(f!, y, _x) : jac_pattern
+    jac_pattern = jac_pattern === nothing ? Symbolics.jacobian_sparsity(f!, y, x) : jac_pattern
     if nnz(jac_pattern) > 0
         jac = float.(jac_pattern)
         jac_colors = SparseDiffTools.matrix_colors(jac)
@@ -47,7 +39,7 @@ function SparseForwardDiffFunction(f, _x::AbstractVector; hessian = false, jac_p
     G = vec(Array(jac))
     vecJ = x -> copy(vecJ!(G, x))
     if hessian
-        hess_pattern = hess_pattern === nothing ? Symbolics.jacobian_sparsity(vecJ!, G, _x) : hess_pattern
+        hess_pattern = hess_pattern === nothing ? Symbolics.jacobian_sparsity(vecJ!, G, x) : hess_pattern
         if nnz(hess_pattern) > 0
             hess = float.(hess_pattern)
             hess_colors = SparseDiffTools.matrix_colors(hess)
@@ -75,7 +67,7 @@ function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
             jac = reshape(vecjac(x), length(val), length(x))
         end
         return val, Δ -> begin
-            (NoTangent(), jac' * Δ)
+            (NoTangent(), jac' * (Δ isa Real ? Δ : vec(Δ)))
         end
     end
 end
@@ -91,7 +83,8 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
         else
             jac = reshape(vecjac(x), length(val), length(x))
         end
-        return val, jac * Δx
+        Δy = jac * (Δx isa Real ? Δx : vec(Δx))
+        return val, (val isa Real) ? only(Δy) : reshape(Δy, size(val))
     end
 end
 @ForwardDiff_frule (f::SparseForwardDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
