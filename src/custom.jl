@@ -16,11 +16,28 @@ end
 function ChainRulesCore.frule(
     (_, Δx), f::CustomGradFunction, x::AbstractVector,
 )
-    v, ∇ = f.f(x), f.g(x)
-    if ∇ isa AbstractVector && Δx isa AbstractVector
-        return v, ∇' * Δx
+    v = f.f(x)
+    if f.g === nothing
+        if v isa Real
+            ∇ = zeros(eltype(v), length(x))'
+        else
+            ∇ = zeros(eltype(v), length(v), length(x))
+        end
     else
-        return v, ∇ * Δx
+        ∇ = f.g(x)
+    end
+    if ∇ isa AbstractVector && Δx isa AbstractVector
+        if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
+            return v, zero(eltype(Δx))
+        else
+            return v, ∇' * Δx
+        end
+    else
+        if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
+            return v, zeros(eltype(Δx), size(∇, 1))
+        else
+            return v, ∇ * Δx
+        end
     end
 end
 @ForwardDiff_frule (f::CustomGradFunction)(x::AbstractVector{<:ForwardDiff.Dual})
