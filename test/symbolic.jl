@@ -1,3 +1,16 @@
+function _test_function_scoping()
+    model = Model()
+    addvar!(model, [0.0], [1.0])
+    set_objective!(model, x -> x[1])
+    add_eq_constraint!(model, x -> x[1])
+    return NonconvexIpopt.optimize(
+        symbolify(model),
+        IpoptAlg(),
+        [0.0];
+        options = IpoptOptions(),
+    )
+end
+
 @testset "SymbolicFunction" begin
     @testset "Derivatives - simplify = $simplify, sparse = $sparse" for simplify in (false, true), sparse in (false, true)
         f = SymbolicFunction(sum, rand(3); hessian = false, simplify, sparse)
@@ -30,6 +43,10 @@
         sym_model = symbolify(m)
         r = NonconvexIpopt.optimize(sym_model, alg, [1.234, 2.345], options = options)
         @test abs(r.minimum - sqrt(8/27)) < 1e-6
-        @test norm(r.minimizer - [1/3, 8/27]) < 1e-6    
+        @test norm(r.minimizer - [1/3, 8/27]) < 1e-6
+    end
+    @testset "function-scope" begin
+        r = _test_function_scoping()
+        @test abs(r.minimum) < 1e-6
     end
 end
