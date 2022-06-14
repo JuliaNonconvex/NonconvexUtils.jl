@@ -1,15 +1,13 @@
 module NonconvexUtils
 
-export  ForwardDiffFunction,
-        AbstractDiffFunction,
+export  forwarddiffy,
+        abstractdiffy,
         AD,
         TraceFunction,
         CustomGradFunction,
         LazyJacobian,
         CustomHessianFunction,
         ImplicitFunction,
-        SymbolicFunction,
-        SparseForwardDiffFunction,
         sparsify,
         symbolify
 

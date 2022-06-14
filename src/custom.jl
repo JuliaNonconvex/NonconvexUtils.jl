@@ -56,7 +56,8 @@ end
 (to::CustomHessianFunction)(x) = to.f(x)
 function ChainRulesCore.rrule(f::CustomHessianFunction, x)
     g = CustomGradFunction(f.g, f.h)
-    return f(x), Δ -> (NoTangent(), g(x) * Δ)
+    G = g(x)
+    return f(x), Δ -> (NoTangent(), G * Δ)
 end
 function ChainRulesCore.frule(
     (_, Δx), f::CustomHessianFunction, x::AbstractVector,

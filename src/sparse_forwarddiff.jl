@@ -89,30 +89,40 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
 end
 @ForwardDiff_frule (f::SparseForwardDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
 
-function sparsify(model::NonconvexCore.AbstractModel; objective = true, ineq_constraints = true, eq_constraints = true, kwargs...)
-    vmodel, v, _ = NonconvexCore.tovecmodel(model)
+function sparsify(f, x...; kwargs...)
+    # defined in the abstractdiff.jl file
+    flat_f, vx, unflatteny = tovecfunc(f, x...)
+    sp_flat_f = SparseForwardDiffFunction(flat_f, vx; kwargs...)
+    return x -> unflatteny(sp_flat_f(flatten(x)[1]))
+end
+
+function sparsify(model::NonconvexCore.AbstractModel; objective = true, ineq_constraints = true, eq_constraints = true, sd_constraints = true, kwargs...)
+    x = getmin(model)
     if objective
-        # Objective
-        sparse_flat_obj = SparseForwardDiffFunction(vmodel.objective, v; kwargs...)
-        obj = NonconvexCore.Objective(x -> sparse_flat_obj(flatten(x)[1]), flags = model.objective.flags)
+        obj = NonconvexCore.Objective(sparsify(model.objective, x; kwargs...), flags = model.objective.flags)
     else
         obj = model.objective
     end
     if ineq_constraints
-        ineq = length(vmodel.ineq_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(vmodel.ineq_constraints.fs) do c
-            sparse_flat_ineq = SparseForwardDiffFunction(c, v; kwargs...)
-            NonconvexCore.IneqConstraint(x -> sparse_flat_ineq(flatten(x)[1]), c.rhs, c.dim, c.flags)
+        ineq = length(model.ineq_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(model.ineq_constraints.fs) do c
+            return NonconvexCore.IneqConstraint(sparsify(c, x; kwargs...), c.rhs, c.dim, c.flags)
         end) : NonconvexCore.VectorOfFunctions(NonconvexCore.IneqConstraint[])
     else
         ineq = model.ineq_constraints
     end
     if eq_constraints
-        eq = length(vmodel.eq_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(vmodel.eq_constraints.fs) do c
-            sparse_flat_eq = SparseForwardDiffFunction(c, v; kwargs...)
-            NonconvexCore.EqConstraint(x -> sparse_flat_eq(flatten(x)[1]), c.rhs, c.dim, c.flags)
+        eq = length(model.eq_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(model.eq_constraints.fs) do c
+            return NonconvexCore.EqConstraint(sparsify(c, x; kwargs...), c.rhs, c.dim, c.flags)
         end) : NonconvexCore.VectorOfFunctions(NonconvexCore.EqConstraint[])
     else
         eq = model.eq_constraints
+    end
+    if sd_constraints
+        sd = length(model.sd_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(model.sd_constraints.fs) do c
+            return NonconvexCore.SDConstraint(sparsify(c, x; kwargs...), c.dim)
+        end) : NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
+    else
+        sd = model.sd_constraints
     end
     if model isa NonconvexCore.Model
         ModelT = NonconvexCore.Model
@@ -121,5 +131,5 @@ function sparsify(model::NonconvexCore.AbstractModel; objective = true, ineq_con
     else
         throw("Unsupported model type.")
     end
-    return ModelT(obj, eq, ineq, model.sd_constraints, model.box_min, model.box_max, model.init, model.integer)
+    return ModelT(obj, eq, ineq, sd, model.box_min, model.box_max, model.init, model.integer)
 end
