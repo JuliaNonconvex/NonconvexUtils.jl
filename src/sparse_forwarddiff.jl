@@ -1,27 +1,28 @@
-struct SparseForwardDiffFunction{F, F!, Y, J, JP, JC, JJ, JJ!, G, H, HP, HC} <: Function
+struct SparseForwardDiffFunction{F, F!, Y, J, JP, JC, JJ, JJ!, G, HH1, HP, HC, HH2} <: Function
     f::F
     f!::F!
     y::Y
     jac::J
     jac_pattern::JP
     jac_colors::JC
-    vecJ::JJ
+    J::JJ
     vecJ!::JJ!
-    G::G
-    hess::H
+    vecJ::G
+    hess::HH1
     hess_pattern::HP
     hess_colors::HC
+    H::HH2
 end
 
 function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pattern = nothing, hess_pattern = nothing)
     val = f(x)
-    _f = val isa Real ? x -> [f(x)] : f
+    _f = x -> _sparsevec(f(x))
     f! = (y, x) -> begin
         v = f(x)
         y .= v
         return y
     end
-    y = val isa Real ? [val] : copy(val)
+    y = _sparsevec(val)
     jac_pattern = jac_pattern === nothing ? Symbolics.jacobian_sparsity(f!, y, x) : jac_pattern
     if nnz(jac_pattern) > 0
         jac = float.(jac_pattern)
@@ -32,13 +33,14 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
         jac_colors = Int[]
     end
     vecJ! = (G, x) -> begin
-        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac_pattern, jac_prototype = jac)
-        G .= vec(Array(_jac))
+        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors)
+        G .= _sparsevec(_jac)
         return G
     end
     G = vec(Array(jac))
-    vecJ = x -> begin
-        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac_pattern, jac_prototype = jac)
+    J = x -> begin
+        xT = eltype(x)
+        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac, jac_prototype = xT.(jac))
         return copy(_jac)
     end
     if hessian
@@ -51,46 +53,70 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
             hess = sparse(Int[], Int[], T[])
             hess_colors = Int[]
         end
+        _J = x -> _sparsevec(J(x))
+        H = x -> begin
+            _hess = SparseDiffTools.forwarddiff_color_jacobian(_J, x, colorvec = hess_colors, sparsity = hess_pattern, jac_prototype = hess)
+            return copy(_hess)
+        end
     else
         hess = nothing
         hess_colors = nothing
+        H = nothing
     end
-    return SparseForwardDiffFunction(f, f!, y, jac, jac_pattern, jac_colors, vecJ, vecJ!, G, hess, hess_pattern, hess_colors)
+    return SparseForwardDiffFunction(f, f!, y, jac, jac_pattern, jac_colors, J, vecJ!, G, hess, hess_pattern, hess_colors, H)
 end
+
+_sparsevec(x::Real) = [x]
+_sparsevec(x::Vector) = copy(vec(x))
+_sparsevec(x::Matrix) = copy(vec(x))
+function _sparsevec(x::SparseMatrixCSC)
+    m, n = size(x)
+    linear_inds = zeros(Int, length(x.nzval))
+    count = 1
+    for colind in 1:length(x.colptr)-1
+        for ind in x.colptr[colind]:x.colptr[colind+1]-1
+            rowind = x.rowval[ind]
+            val = x.nzval[ind]
+            linear_inds[count] = rowind + (colind - 1) * m
+            count += 1
+        end
+    end
+    return sparsevec(linear_inds, copy(x.nzval))
+end
+
 (f::SparseForwardDiffFunction)(x) = f.f(x)
 function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
-    if f.vecJ === nothing
-        return f(x), _ -> (NoTangent(), NoTangent())
+    if f.H === nothing
+        J = f.J
     else
-        vecjac = SparseForwardDiffFunction(f.vecJ, f.vecJ!, f.G, f.hess, f.hess_pattern, f.hess_colors, nothing, nothing, nothing, nothing, nothing, nothing)
-        val = f(x)
+        J = SparseForwardDiffFunction(f.J, f.vecJ!, f.vecJ, f.hess, f.hess_pattern, f.hess_colors, f.H, nothing, nothing, nothing, nothing, nothing, nothing)
+    end
+    val = f(x)
+    jac = J(x)
+    return val, Δ -> begin
         if val isa Real
-            jac = reshape(vecjac(x), 1, length(x))
-        elseif val isa AbstractVector
-            jac = vecjac(x)
+            (NoTangent(), sparse(vec(jac' * Δ)))
         else
-            jac = reshape(vecjac(x), length(val), length(x))
-        end
-        return val, Δ -> begin
-            (NoTangent(), jac' * (Δ isa Real ? Δ : sparse(vec(Δ))))
+            (NoTangent(), jac' * sparse(vec(Δ)))
         end
     end
 end
 function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::AbstractVector)
-    if f.vecJ === nothing
-        val = f(x)
-        return val, zero(val)
+    if f.H === nothing
+        J = f.J
     else
-        vecjac = SparseForwardDiffFunction(f.vecJ, f.vecJ!, f.G, f.hess, f.hess_pattern, f.hess_colors, nothing, nothing, nothing, nothing, nothing, nothing)
-        val = f(x)
-        if val isa Real
-            jac = reshape(vecjac(x), 1, length(x))
-        else
-            jac = reshape(vecjac(x), length(val), length(x))
-        end
-        Δy = jac * (Δx isa Real ? Δx : vec(Δx))
-        return val, (val isa Real) ? only(Δy) : reshape(Δy, size(val))
+        J = SparseForwardDiffFunction(f.J, f.vecJ!, f.vecJ, f.hess, f.hess_pattern, f.hess_colors, f.H, nothing, nothing, nothing, nothing, nothing, nothing)
     end
+    val = f(x)
+    jac = J(x)
+    if val isa Real
+        Δy = only(jac * Δx)
+    elseif val isa AbstractVector
+        Δy = jac * sparse(vec(Δx))
+    else
+        Δy = reshape(jac * sparse(vec(Δx)), size(val)...)
+    end
+    return val, Δy
 end
 @ForwardDiff_frule (f::SparseForwardDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
 
