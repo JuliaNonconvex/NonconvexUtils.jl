@@ -1,27 +1,35 @@
-@testset "SparseForwardDiffFunction" begin
-    @testset "Derivatives" begin
-        f = SparseForwardDiffFunction(sum, rand(3); hessian = false)
+@testset "sparsify" begin
+    @testset "Functions" begin
+        f = sparsify(sum, rand(3); hessian = false)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
 
-        f = SparseForwardDiffFunction(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false)
+        f = sparsify(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false)
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
+        @test NonconvexCore.sparse_jacobian(f, x) ≈ Zygote.jacobian(f, x)[1]
+        @test NonconvexCore.sparse_fd_jacobian(f, x) ≈ ForwardDiff.jacobian(f, x)
+        @test NonconvexCore.sparse_jacobian(f, x) isa SparseMatrixCSC
+        @test NonconvexCore.sparse_fd_jacobian(f, x) isa SparseMatrixCSC
 
-        f = SparseForwardDiffFunction(sum, rand(3); hessian = true)
+        f = sparsify(sum, rand(3); hessian = true)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, rand(3))
+        @test NonconvexCore.sparse_hessian(f, x) ≈ Zygote.hessian(f, x)
+        @test NonconvexCore.sparse_hessian(f, x) isa SparseMatrixCSC
 
-        f = SparseForwardDiffFunction(x -> sum(x)^2 + x[1], rand(3); hessian = true)
+        f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian = true)
         x = rand(3)
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
+        @test NonconvexCore.sparse_hessian(f, x) ≈ Zygote.hessian(f, x)
+        @test NonconvexCore.sparse_hessian(f, x) isa SparseMatrixCSC
 
-        f = SparseForwardDiffFunction(x -> sum(x)^2 + x[1], rand(3); hessian = true)
+        f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian = true)
         x = rand(3)
         @test Zygote.jacobian(x -> Zygote.gradient(f, x)[1], x)[1] ≈ ForwardDiff.hessian(f, x)
     end
-    @testset "sparsify - first order = $first_order" for first_order in (true, false)
+    @testset "Model - first order = $first_order" for first_order in (true, false)
         f = (x::AbstractVector) -> sqrt(x[2])
         g = (x::AbstractVector, a, b) -> (a*x[1] + b)^3 - x[2]
         options = IpoptOptions(first_order = first_order)

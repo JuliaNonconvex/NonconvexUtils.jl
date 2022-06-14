@@ -11,26 +11,26 @@ function _test_function_scoping()
     )
 end
 
-@testset "SymbolicFunction" begin
-    @testset "Derivatives - simplify = $simplify, sparse = $sparse" for simplify in (false, true), sparse in (false, true)
-        f = SymbolicFunction(sum, rand(3); hessian = false, simplify, sparse)
+@testset "symbolify" begin
+    @testset "Functions - simplify = $simplify, sparse = $sparse" for simplify in (false, true), sparse in (false, true)
+        f = symbolify(sum, rand(3); hessian = false, simplify, sparse)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
 
-        f = SymbolicFunction(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false, simplify, sparse)
+        f = symbolify(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false, simplify, sparse)
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
 
-        f = SymbolicFunction(sum, rand(3); hessian = true, simplify, sparse)
+        f = symbolify(sum, rand(3); hessian = true, simplify, sparse)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, rand(3))
 
-        f = SymbolicFunction(x -> norm(x) + x[1], rand(3); hessian = true, simplify, sparse)
+        f = symbolify(x -> norm(x) + x[1], rand(3); hessian = true, simplify, sparse)
         x = rand(3)
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
     end
-    @testset "symbolify - first order = $first_order" for first_order in (true, false)
+    @testset "Model - first order = $first_order" for first_order in (true, false)
         f = (x::AbstractVector) -> sqrt(x[2])
         g = (x::AbstractVector, a, b) -> (a*x[1] + b)^3 - x[2]
         options = IpoptOptions(first_order = first_order)

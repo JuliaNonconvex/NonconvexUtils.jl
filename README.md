@@ -5,20 +5,21 @@
 
 Useful hacks for use in Nonconvex.jl.
 
-## Hack #1: `AbstractDiffFunction` and `ForwardDiffFunction`
+## Hack #1: `abstractdiffy` and `forwarddiffy`
 
 [`Nonconvex.jl`](https://github.com/JuliaNonconvex/Nonconvex.jl) uses [`Zygote.jl`](https://github.com/FluxML/Zygote.jl) for automatic differentiation (AD). In order to force the use of another AD package for a function `f`, one can specify any AD `backend` from [`AbstractDifferentiation.jl`](https://github.com/JuliaDiff/AbstractDifferentiation.jl) in the following way:
 ```julia
-g = AbstractDiffFunction(f, backend)
+g = abstractdiffy(f, backend, x...)
 ```
+where `x...` refers to some sample inputs to `f`.
 
 If you want to use [`ForwardDiff.jl`](https://github.com/JuliaDiff/ForwardDiff.jl) to differentiate the function `f`, you can also use
 ```julia
-g = ForwardDiffFunction(f)
+g = forwarddiffy(f, x...)
 ```
 which is short for:
 ```julia
-AbstractDiffFunction(f, AbstractDifferentiation.ForwardDiffBackend())
+g = abstractdiffy(f, AD.ForwardDiffBackend(), x...)
 ```
 
 ## Hack #2: `TraceFunction`
