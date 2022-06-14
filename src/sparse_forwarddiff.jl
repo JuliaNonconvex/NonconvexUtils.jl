@@ -72,7 +72,7 @@ function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
             jac = reshape(vecjac(x), length(val), length(x))
         end
         return val, Δ -> begin
-            (NoTangent(), jac' * sparse(Δ isa Real ? Δ : vec(Δ)))
+            (NoTangent(), jac' * (Δ isa Real ? Δ : sparse(vec(Δ))))
         end
     end
 end
