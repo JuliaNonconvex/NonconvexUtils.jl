@@ -32,12 +32,15 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
         jac_colors = Int[]
     end
     vecJ! = (G, x) -> begin
-        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors)
+        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac_pattern, jac_prototype = jac)
         G .= vec(Array(_jac))
         return G
     end
     G = vec(Array(jac))
-    vecJ = x -> copy(vecJ!(G, x))
+    vecJ = x -> begin
+        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac_pattern, jac_prototype = jac)
+        return copy(_jac)
+    end
     if hessian
         hess_pattern = hess_pattern === nothing ? Symbolics.jacobian_sparsity(vecJ!, G, x) : hess_pattern
         if nnz(hess_pattern) > 0
@@ -63,11 +66,13 @@ function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
         val = f(x)
         if val isa Real
             jac = reshape(vecjac(x), 1, length(x))
+        elseif val isa AbstractVector
+            jac = vecjac(x)
         else
             jac = reshape(vecjac(x), length(val), length(x))
         end
         return val, Δ -> begin
-            (NoTangent(), jac' * (Δ isa Real ? Δ : vec(Δ)))
+            (NoTangent(), jac' * sparse(Δ isa Real ? Δ : vec(Δ)))
         end
     end
 end
