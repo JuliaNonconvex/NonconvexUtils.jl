@@ -48,15 +48,16 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
         if nnz(hess_pattern) > 0
             hess = float.(hess_pattern)
             hess_colors = SparseDiffTools.matrix_colors(hess)
+            _J = x -> _sparsevec(J(x))
+            H = x -> begin
+                _hess = SparseDiffTools.forwarddiff_color_jacobian(_J, x, colorvec = hess_colors, sparsity = hess_pattern, jac_prototype = hess)
+                return copy(_hess)
+            end
         else
             T = eltype(G)
-            hess = sparse(Int[], Int[], T[])
+            hess = sparse(Int[], Int[], T[], length(x), length(x))
             hess_colors = Int[]
-        end
-        _J = x -> _sparsevec(J(x))
-        H = x -> begin
-            _hess = SparseDiffTools.forwarddiff_color_jacobian(_J, x, colorvec = hess_colors, sparsity = hess_pattern, jac_prototype = hess)
-            return copy(_hess)
+            H = x -> hess
         end
     else
         hess = nothing
