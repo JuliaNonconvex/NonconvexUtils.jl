@@ -28,6 +28,23 @@
         f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian = true)
         x = rand(3)
         @test Zygote.jacobian(x -> Zygote.gradient(f, x)[1], x)[1] ≈ ForwardDiff.hessian(f, x)
+
+        f = sparsify(x -> [sum(x)^2, x[1]], rand(3); hessian = true)
+        x = rand(3)
+        g = x -> sum(f(x))
+        @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
+        @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
+
+        f = sparsify(x -> [0.0, 0.0], rand(3); hessian = true)
+        x = rand(3)
+        g = x -> sum(f(x))
+        @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
+        @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
+
+        f = sparsify(x -> 0.0, rand(3); hessian = true)
+        x = rand(3)
+        @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, x)
+        @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
     end
     @testset "Model - first order = $first_order" for first_order in (true, false)
         f = (x::AbstractVector) -> sqrt(x[2])

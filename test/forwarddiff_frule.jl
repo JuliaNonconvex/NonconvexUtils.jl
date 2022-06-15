@@ -4,7 +4,7 @@
 ## Functor f - fix first
 @testset "ForwardDiff frule" begin
     @eval begin
-        f1(x, y) = x + y
+        f1(x, y) = (x + 2y).^2
         global frule_count = 0
         function ChainRulesCore.frule((_, Δx1, Δx2), ::typeof(f1), x1, x2)
             global frule_count += 1
@@ -68,8 +68,7 @@
         cfg = ForwardDiff.GradientConfig(_f, rand(2), ForwardDiff.Chunk{2}())
         g2 = ForwardDiff.gradient(_f, rand(2), cfg)
         @test frule_count == 4
-        g3 = Zygote.gradient(_f, rand(2))[1]
-        @test g1 == g2 == g3
+        @test g1 == g2
     end
     frule_count = 0
     @testset "2 vector inputs - 1 real output" begin
@@ -79,8 +78,7 @@
         cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
         g2 = ForwardDiff.gradient(_f, rand(4), cfg)
         @test frule_count == 8
-        g3 = Zygote.gradient(_f, rand(4))[1]
-        @test g1 == g2 == g3
+        @test g1 == g2
     end
     frule_count = 0
     @testset "2 vector inputs - 1 vector output" begin
@@ -90,8 +88,7 @@
         cfg = ForwardDiff.JacobianConfig(_f, rand(4), ForwardDiff.Chunk{2}())
         j2 = ForwardDiff.jacobian(_f, rand(4), cfg)
         @test frule_count == 8
-        j3 = Zygote.jacobian(_f, rand(4))[1]
-        @test j1 == j2 == j3
+        @test j1 == j2
     end
     frule_count = 0
     @testset "2 matrix inputs - 1 real output" begin
@@ -101,8 +98,7 @@
         cfg = ForwardDiff.GradientConfig(_f, rand(4, 4), ForwardDiff.Chunk{2}())
         g2 = ForwardDiff.gradient(_f, rand(4, 4), cfg)
         @test frule_count == 32
-        g3 = Zygote.gradient(_f, rand(4, 4))[1]
-        @test g1 == g2 == g3
+        @test g1 == g2
     end
     frule_count = 0
     @testset "2 NamedTuple inputs - 1 real output" begin
@@ -112,8 +108,7 @@
         cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
         g2 = ForwardDiff.gradient(_f, rand(4))
         @test frule_count == 8
-        g3 = Zygote.gradient(_f, rand(4))[1]
-        @test g1 == g2 == g3
+        @test g1 == g2
     end
     frule_count = 0
     @testset "2 struct inputs - 1 real output" begin
@@ -123,8 +118,7 @@
         cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
         g2 = ForwardDiff.gradient(_f, rand(4))
         @test frule_count == 8
-        g3 = Zygote.gradient(_f, rand(4))[1]
-        @test g1 == g2 == g3
+        @test g1 == g2
     end
     frule_count = 0
     @testset "eigvals" begin

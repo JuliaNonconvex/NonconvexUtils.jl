@@ -28,8 +28,8 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
         jac = float.(jac_pattern)
         jac_colors = SparseDiffTools.matrix_colors(jac)
     else
-        T = eltype(G)
-        jac = sparse(Int[], Int[], T[])
+        T = eltype(y)
+        jac = sparse(Int[], Int[], T[], length(y), length(x))
         jac_colors = Int[]
     end
     vecJ! = (G, x) -> begin
@@ -40,8 +40,12 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
     G = vec(Array(jac))
     J = x -> begin
         xT = eltype(x)
-        _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac, jac_prototype = xT.(jac))
-        return copy(_jac)
+        if length(jac.nzval) > 0
+            _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac, jac_prototype = xT.(jac))
+            return copy(_jac)
+        else
+            return sparse(Int[], Int[], xT[], size(jac)...)
+        end
     end
     if hessian
         hess_pattern = hess_pattern === nothing ? Symbolics.jacobian_sparsity(vecJ!, G, x) : hess_pattern
@@ -68,7 +72,7 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
 end
 
 _sparsevec(x::Real) = [x]
-_sparsevec(x::Vector) = copy(vec(x))
+_sparsevec(x::Vector) = copy(x)
 _sparsevec(x::Matrix) = copy(vec(x))
 function _sparsevec(x::SparseMatrixCSC)
     m, n = size(x)
@@ -82,7 +86,29 @@ function _sparsevec(x::SparseMatrixCSC)
             count += 1
         end
     end
-    return sparsevec(linear_inds, copy(x.nzval))
+    return sparsevec(linear_inds, copy(x.nzval), prod(size(x)))
+end
+
+# can be made more efficient using div and mod
+function _sparse_reshape(v::SparseVector, m, n)
+    if length(v.nzval) == 0
+        return sparse(Int[], Int[], v.nzval, m, n)
+    end
+    ind = 1
+    N = length(v.nzval)
+    I = zeros(Int, N)
+    J = zeros(Int, N)
+    for i in 1:m, j in 1:n
+        if (j - 1) * m + i == v.nzind[ind]
+            I[ind] = i
+            J[ind] = j
+            ind += 1
+        end
+        if ind > N
+            break
+        end
+    end
+    return sparse(I, J, copy(v.nzval), m, n)
 end
 
 (f::SparseForwardDiffFunction)(x) = f.f(x)
@@ -115,9 +141,10 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
     elseif val isa AbstractVector
         Δy = jac * sparse(vec(Δx))
     else
-        Δy = reshape(jac * sparse(vec(Δx)), size(val)...)
+        Δy = _sparse_reshape(jac * sparse(vec(Δx)), size(val)...)
     end
-    return val, Δy
+    project_to = ChainRulesCore.ProjectTo(val)
+    return val, project_to(Δy)
 end
 @ForwardDiff_frule (f::SparseForwardDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
 

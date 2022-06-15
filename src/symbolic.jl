@@ -71,7 +71,7 @@ function ChainRulesCore.rrule(f::SymbolicFunction, x)
         G = g(x)
         return val, Δ -> (NoTangent(), G * Δ)
     else
-        hvp = (x, v) -> reshape(f.h(x), length(val), length(x))' * vec(v)
+        hvp = (x, v) -> reshape(f.h(x), length(val) * length(x), length(x)) * vec(v)
         _h = x -> LazyJacobian{true}(v -> hvp(x, v))
         g = CustomGradFunction(f.g, _h)
         G = g(x)
@@ -85,7 +85,7 @@ function ChainRulesCore.frule(
     if val isa Real
         g = CustomGradFunction(f.g, f.h)
     else
-        hvp = (x, v) -> reshape(f.h, length(val), length(x))' * vec(v)
+        hvp = (x, v) -> reshape(f.h(x), length(val) * length(x), length(x)) * vec(v)
         _h = x -> LazyJacobian{true}(v -> hvp(x, v))
         g = CustomGradFunction(f.g, _h)
     end

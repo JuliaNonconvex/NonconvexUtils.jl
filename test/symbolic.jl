@@ -20,20 +20,36 @@ end
         f = symbolify(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false, simplify, sparse)
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
+        if sparse
+            @test NonconvexCore.sparse_jacobian(f, x) ≈ Zygote.jacobian(f, x)[1]
+            @test NonconvexCore.sparse_fd_jacobian(f, x) ≈ ForwardDiff.jacobian(f, x)
+            @test NonconvexCore.sparse_jacobian(f, x) isa SparseMatrixCSC
+            @test NonconvexCore.sparse_fd_jacobian(f, x) isa SparseMatrixCSC
+        end
 
         f = symbolify(sum, rand(3); hessian = true, simplify, sparse)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, rand(3))
+        if sparse
+            @test NonconvexCore.sparse_hessian(f, x) ≈ Zygote.hessian(f, x)
+            @test NonconvexCore.sparse_hessian(f, x) isa SparseMatrixCSC
+        end
 
         f = symbolify(x -> norm(x) + x[1], rand(3); hessian = true, simplify, sparse)
         x = rand(3)
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
+
+        f = symbolify(x -> [norm(x), x[1]], rand(3); hessian = true, simplify, sparse)
+        x = rand(3)
+        g = x -> sum(f(x))
+        @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
+        @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
     end
-    @testset "Model - first order = $first_order" for first_order in (true, false)
+    @testset "Model - first order = $first_order - sparse $sparse" for first_order in (true, false), sparse in (true, false)
         f = (x::AbstractVector) -> sqrt(x[2])
         g = (x::AbstractVector, a, b) -> (a*x[1] + b)^3 - x[2]
-        options = IpoptOptions(first_order = first_order)
+        options = IpoptOptions(; first_order, sparse)
         m = Model(f)
         addvar!(m, [0.0, 0.0], [10.0, 10.0])
         add_ineq_constraint!(m, x -> g(x, 2, 0))
