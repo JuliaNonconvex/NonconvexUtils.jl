@@ -46,7 +46,7 @@ end
         @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
         @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
     end
-    @testset "Model - first order = $first_order - sparse $sparse" for first_order in (true, false), sparse in (true, false)
+    @testset "Model - first order = $first_order - sparse = $sparse" for first_order in (true, false), sparse in (true, false)
         f = (x::AbstractVector) -> sqrt(x[2])
         g = (x::AbstractVector, a, b) -> (a*x[1] + b)^3 - x[2]
         options = IpoptOptions(; first_order, sparse)
