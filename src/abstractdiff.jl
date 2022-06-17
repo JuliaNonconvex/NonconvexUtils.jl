@@ -18,24 +18,10 @@ function ChainRulesCore.frule(
 end
 @ForwardDiff_frule (f::AbstractDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
 
-function tovecfunc(f, x...)
-    vx, _unflattenx = flatten(x)
-    unflattenx = NonconvexCore.Unflatten(x, _unflattenx)
-    y = f(x...)
-    tmp = NonconvexCore.maybeflatten(y)
-    # should be addressed in maybeflatten
-    if y isa Real
-        unflatteny = identity
-    else
-        unflatteny = NonconvexCore.Unflatten(y, tmp[2])
-    end
-    return x -> NonconvexCore.maybeflatten(f(unflattenx(x)...))[1], float.(vx), unflatteny
-end
-
 # does not assume vector input and output
 forwarddiffy(f_or_m, x...) = abstractdiffy(f_or_m, AD.ForwardDiffBackend(), x...)
 function abstractdiffy(f, backend, x...)
-    flat_f, vx, unflatteny = tovecfunc(f, x...)
+    flat_f, _, unflatteny = tovecfunc(f, x...)
     ad_flat_f = AbstractDiffFunction(flat_f, backend)
     return (x...,) -> unflatteny(ad_flat_f(flatten(x)[1]))
 end

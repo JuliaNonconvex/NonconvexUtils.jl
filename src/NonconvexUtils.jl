@@ -13,7 +13,7 @@ export  forwarddiffy,
 
 using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
 using Zygote, LinearMaps, IterativeSolvers, NonconvexCore, SparseArrays
-using NonconvexCore: flatten
+using NonconvexCore: flatten, tovecfunc, _sparsevec, _sparse_reshape
 using MacroTools
 using Symbolics: Symbolics
 using SparseDiffTools: SparseDiffTools

@@ -42,7 +42,8 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
         xT = eltype(x)
         if length(jac.nzval) > 0
             _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors, sparsity = jac, jac_prototype = xT.(jac))
-            return copy(_jac)
+            project_to = ChainRulesCore.ProjectTo(jac)
+            return project_to(copy(_jac))
         else
             return sparse(Int[], Int[], xT[], size(jac)...)
         end
@@ -55,7 +56,8 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
             _J = x -> _sparsevec(J(x))
             H = x -> begin
                 _hess = SparseDiffTools.forwarddiff_color_jacobian(_J, x, colorvec = hess_colors, sparsity = hess_pattern, jac_prototype = hess)
-                return copy(_hess)
+                project_to = ChainRulesCore.ProjectTo(hess)
+                return project_to(copy(_hess))
             end
         else
             T = eltype(G)
@@ -71,46 +73,6 @@ function SparseForwardDiffFunction(f, x::AbstractVector; hessian = false, jac_pa
     return SparseForwardDiffFunction(f, f!, y, jac, jac_pattern, jac_colors, J, vecJ!, G, hess, hess_pattern, hess_colors, H)
 end
 
-_sparsevec(x::Real) = [x]
-_sparsevec(x::Vector) = copy(x)
-_sparsevec(x::Matrix) = copy(vec(x))
-function _sparsevec(x::SparseMatrixCSC)
-    m, n = size(x)
-    linear_inds = zeros(Int, length(x.nzval))
-    count = 1
-    for colind in 1:length(x.colptr)-1
-        for ind in x.colptr[colind]:x.colptr[colind+1]-1
-            rowind = x.rowval[ind]
-            val = x.nzval[ind]
-            linear_inds[count] = rowind + (colind - 1) * m
-            count += 1
-        end
-    end
-    return sparsevec(linear_inds, copy(x.nzval), prod(size(x)))
-end
-
-# can be made more efficient using div and mod
-function _sparse_reshape(v::SparseVector, m, n)
-    if length(v.nzval) == 0
-        return sparse(Int[], Int[], v.nzval, m, n)
-    end
-    ind = 1
-    N = length(v.nzval)
-    I = zeros(Int, N)
-    J = zeros(Int, N)
-    for i in 1:m, j in 1:n
-        if (j - 1) * m + i == v.nzind[ind]
-            I[ind] = i
-            J[ind] = j
-            ind += 1
-        end
-        if ind > N
-            break
-        end
-    end
-    return sparse(I, J, copy(v.nzval), m, n)
-end
-
 (f::SparseForwardDiffFunction)(x) = f.f(x)
 function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
     if f.H === nothing
@@ -122,9 +84,14 @@ function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
     jac = J(x)
     return val, Δ -> begin
         if val isa Real
-            (NoTangent(), sparse(vec(jac' * Δ)))
+            (NoTangent(), jac' * Δ)
         else
-            (NoTangent(), jac' * sparse(vec(Δ)))
+            spΔ = dropzeros!(sparse(_sparsevec(copy(Δ))))
+            if length(spΔ.nzval) == 1
+                (NoTangent(), jac[spΔ.nzind[1], :] * spΔ.nzval[1])
+            else
+                (NoTangent(), jac' * spΔ)
+            end
         end
     end
 end
@@ -139,46 +106,82 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
     if val isa Real
         Δy = only(jac * Δx)
     elseif val isa AbstractVector
-        Δy = jac * sparse(vec(Δx))
+        spΔx = dropzeros!(sparse(_sparsevec(copy(Δx))))
+        if length(spΔx.nzval) == 1
+            Δy = jac[:, spΔx.nzind[1]] * spΔx.nzval[1]
+        else
+            Δy = jac * spΔx
+        end
     else
-        Δy = _sparse_reshape(jac * sparse(vec(Δx)), size(val)...)
+        spΔx = dropzeros!(sparse(_sparsevec(copy(Δx))))
+        Δy = _sparse_reshape(jac * spΔx, size(val)...)
     end
     project_to = ChainRulesCore.ProjectTo(val)
     return val, project_to(Δy)
 end
 @ForwardDiff_frule (f::SparseForwardDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
 
-function sparsify(f, x...; kwargs...)
-    # defined in the abstractdiff.jl file
-    flat_f, vx, unflatteny = tovecfunc(f, x...)
-    sp_flat_f = SparseForwardDiffFunction(flat_f, vx; kwargs...)
-    return x -> unflatteny(sp_flat_f(flatten(x)[1]))
+struct UnflattennedFunction{F1, F2, V, U} <: Function
+    f::F1
+    flat_f::F2
+    v::V
+    unflatten::U
+    flatteny::Bool
+end
+(f::UnflattennedFunction)(x...) = f.f(x...)
+function NonconvexCore.tovecfunc(f::UnflattennedFunction, x...; flatteny = true)
+    @assert flatteny == f.flatteny
+    return f.flat_f, f.v, f.unflatten
+end
+
+function sparsify(f, x...; flatteny = true, kwargs...)
+    flat_f, vx, unflatteny = tovecfunc(f, x...; flatteny)
+    if length(x) == 1 && x[1] isa AbstractVector
+        flat_f = f
+        sp_flat_f = SparseForwardDiffFunction(flat_f, vx; kwargs...)
+        return UnflattennedFunction(
+            x -> unflatteny(sp_flat_f(x)),
+            sp_flat_f,
+            vx,
+            unflatteny,
+            flatteny,
+        )
+    else
+        sp_flat_f = SparseForwardDiffFunction(flat_f, vx; kwargs...)
+        return UnflattennedFunction(
+            x -> unflatteny(sp_flat_f(flatten(x)[1])),
+            sp_flat_f,
+            vx,
+            unflatteny,
+            flatteny,
+        )    
+    end
 end
 
 function sparsify(model::NonconvexCore.AbstractModel; objective = true, ineq_constraints = true, eq_constraints = true, sd_constraints = true, kwargs...)
     x = getmin(model)
     if objective
-        obj = NonconvexCore.Objective(sparsify(model.objective, x; kwargs...), flags = model.objective.flags)
+        obj = NonconvexCore.Objective(sparsify(model.objective.f, x; kwargs...), model.objective.multiple, model.objective.flags)
     else
         obj = model.objective
     end
     if ineq_constraints
         ineq = length(model.ineq_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(model.ineq_constraints.fs) do c
-            return NonconvexCore.IneqConstraint(sparsify(c, x; kwargs...), c.rhs, c.dim, c.flags)
+            return NonconvexCore.IneqConstraint(sparsify(c.f, x; kwargs...), c.rhs, c.dim, c.flags)
         end) : NonconvexCore.VectorOfFunctions(NonconvexCore.IneqConstraint[])
     else
         ineq = model.ineq_constraints
     end
     if eq_constraints
         eq = length(model.eq_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(model.eq_constraints.fs) do c
-            return NonconvexCore.EqConstraint(sparsify(c, x; kwargs...), c.rhs, c.dim, c.flags)
+            return NonconvexCore.EqConstraint(sparsify(c.f, x; kwargs...), c.rhs, c.dim, c.flags)
         end) : NonconvexCore.VectorOfFunctions(NonconvexCore.EqConstraint[])
     else
         eq = model.eq_constraints
     end
     if sd_constraints
         sd = length(model.sd_constraints.fs) != 0 ? NonconvexCore.VectorOfFunctions(map(model.sd_constraints.fs) do c
-            return NonconvexCore.SDConstraint(sparsify(c, x; kwargs...), c.dim)
+            return NonconvexCore.SDConstraint(sparsify(c.f, x; flatteny = false, kwargs...), c.dim)
         end) : NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
     else
         sd = model.sd_constraints

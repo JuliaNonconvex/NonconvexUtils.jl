@@ -4,12 +4,28 @@ struct CustomGradFunction{F, G} <: Function
 end
 (f::CustomGradFunction)(x::AbstractVector) = f.f(x)
 function ChainRulesCore.rrule(f::CustomGradFunction, x::AbstractVector)
-    return f.f(x), Δ -> begin
-        G = f.g(x)
+    v = f.f(x)
+    return v, Δ -> begin
+        if f.g === nothing
+            if v isa Real
+                G = spzeros(eltype(v), length(x))
+            else
+                G = spzeros(eltype(v), length(v), length(x))
+            end
+        else
+            G = f.g(x)
+        end
         if G isa AbstractVector
             return (NoTangent(), G * Δ)
-        else
+        elseif G isa LazyJacobian
             return (NoTangent(), G' * Δ)
+        else
+            spΔ = dropzeros!(sparse(copy(Δ)))
+            if length(spΔ.nzval) == 1
+                return (NoTangent(), G[spΔ.nzind[1], :] * spΔ.nzval[1])
+            else
+                return (NoTangent(), G' * Δ)
+            end
         end
     end
 end
@@ -19,24 +35,25 @@ function ChainRulesCore.frule(
     v = f.f(x)
     if f.g === nothing
         if v isa Real
-            ∇ = zeros(eltype(v), length(x))'
+            ∇ = spzeros(eltype(v), 1, length(x))
         else
-            ∇ = zeros(eltype(v), length(v), length(x))
+            ∇ = spzeros(eltype(v), length(v), length(x))
         end
     else
         ∇ = f.g(x)
     end
+    project_to = ProjectTo(v)
     if ∇ isa AbstractVector && Δx isa AbstractVector
         if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
-            return v, zero(eltype(Δx))
+            return v, project_to(zero(eltype(Δx)))
         else
-            return v, ∇' * Δx
+            return v, project_to(∇' * Δx)
         end
     else
         if !(∇ isa LazyJacobian) && issparse(∇) && nnz(∇) == 0
-            return v, zeros(eltype(Δx), size(∇, 1))
+            return v, project_to(spzeros(eltype(Δx), size(∇, 1)))
         else
-            return v, ∇ * Δx
+            return v, project_to(_sparse_reshape(∇ * Δx, size(v)...))
         end
     end
 end
@@ -64,10 +81,11 @@ function ChainRulesCore.frule(
 )
     g = CustomGradFunction(f.g, f.h)
     v, ∇ = f(x), g(x)
+    project_to = ProjectTo(v)
     if ∇ isa AbstractVector && Δx isa AbstractVector
-        return v, ∇' * Δx
+        return v, project_to(∇' * Δx)
     else
-        return v, ∇ * Δx
+        return v, project_to(∇ * Δx)
     end
 end
 @ForwardDiff_frule (f::CustomHessianFunction)(x::AbstractVector{<:ForwardDiff.Dual})

@@ -1,16 +1,14 @@
 @testset "sparsify" begin
     @testset "Functions" begin
-        f = sparsify(sum, rand(3); hessian = false)
+        f = sparsify(sum, rand(3); hessian = false).flat_f
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
 
-        f = sparsify(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false)
+        f = sparsify(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false).flat_f
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
         @test NonconvexCore.sparse_jacobian(f, x) ≈ Zygote.jacobian(f, x)[1]
-        @test NonconvexCore.sparse_fd_jacobian(f, x) ≈ ForwardDiff.jacobian(f, x)
         @test NonconvexCore.sparse_jacobian(f, x) isa SparseMatrixCSC
-        @test NonconvexCore.sparse_fd_jacobian(f, x) isa SparseMatrixCSC
 
         f = sparsify(sum, rand(3); hessian = true)
         x = rand(3)
