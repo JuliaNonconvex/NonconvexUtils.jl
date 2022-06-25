@@ -82,6 +82,7 @@ function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
     end
     val = f(x)
     jac = J(x)
+    f.jac .= jac
     return val, Δ -> begin
         if val isa Real
             (NoTangent(), jac' * Δ)
@@ -103,6 +104,7 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
     end
     val = f(x)
     jac = J(x)
+    f.jac .= jac
     if val isa Real
         Δy = only(jac * Δx)
     elseif val isa AbstractVector
