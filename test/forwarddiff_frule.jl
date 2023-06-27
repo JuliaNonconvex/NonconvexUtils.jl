@@ -33,7 +33,7 @@
         # The @constructor macro takes the type (first) and constructor function (second)
         # The constructor function takes input the fields generated from ntfromstruct (as multiple positional arguments)
         # The ntfromstruct function can be overloaded for your type
-        NonconvexCore.@constructor MyStruct MyStruct
+        DifferentiableFlatten.@constructor MyStruct MyStruct
 
         f2(x::MyStruct, y::MyStruct) = MyStruct(x.a + y.a, x.b + y.b)
         function ChainRulesCore.frule((_, Δx1, Δx2), ::typeof(f2), x1::MyStruct, x2::MyStruct)
@@ -53,7 +53,7 @@
         end
 
         # I recommend creating your own type to avoid piracy
-        NonconvexCore.@constructor Symmetric Symmetric
+        DifferentiableFlatten.@constructor Symmetric Symmetric
         import NamedTupleTools: ntfromstruct, structfromnt
         ntfromstruct(a::Symmetric) = (data = a.data,)
         structfromnt(::Type{Symmetric}, x::NamedTuple) = Symmetric(x.data, :U)
