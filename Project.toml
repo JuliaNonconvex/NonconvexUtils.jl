@@ -26,11 +26,12 @@ LinearMaps = "3"
 MacroTools = "0.5"
 NonconvexCore = "1.1"
 SparseDiffTools = "1.24"
-Symbolics = "4.6"
+Symbolics = "5"
 Zygote = "0.5, 0.6"
 julia = "1"
 
 [extras]
+DifferentiableFlatten = "c78775a3-ee38-4681-b694-0504db4f5dc7"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 NamedTupleTools = "d9ec5142-1e00-5aa0-9d6a-321866360f50"
 NonconvexIpopt = "bf347577-a06d-49ad-a669-8c0e005493b8"
@@ -41,4 +42,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [targets]
-test = ["NamedTupleTools", "NonconvexIpopt", "NLsolve", "ReverseDiff", "SparseArrays", "StableRNGs", "Test", "Tracker"]
+test = ["DifferentiableFlatten", "NamedTupleTools", "NonconvexIpopt", "NLsolve", "ReverseDiff", "SparseArrays", "StableRNGs", "Test", "Tracker"]
