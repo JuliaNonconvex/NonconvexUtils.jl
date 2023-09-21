@@ -1,7 +1,7 @@
 name = "NonconvexUtils"
 uuid = "c48e48a2-1f5e-44ff-8799-c8e168d11d1b"
 authors = ["Mohamed Tarek <mohamed82008@gmail.com> and contributors"]
-version = "0.4.2"
+version = "0.4.3"
 
 [deps]
 AbstractDifferentiation = "c29ec348-61ec-40c8-8164-b8c60e9d9f3d"
@@ -26,7 +26,7 @@ IterativeSolvers = "0.8, 0.9"
 LinearMaps = "3"
 MacroTools = "0.5"
 NonconvexCore = "1.1"
-SparseDiffTools = "1.24"
+SparseDiffTools = "2"
 Symbolics = "5"
 Zygote = "0.5, 0.6"
 julia = "1"
