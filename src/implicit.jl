@@ -1,5 +1,5 @@
 # Parameters x, variables y, residuals f
-struct ImplicitFunction{matrixfree, F, C, L, T} <: Function
+struct ImplicitFunction{matrixfree,F,C,L,T} <: Function
     # A function which takes x as input and returns a tuple (ystar, df/dy) such that f(x, ystar) = 0. df/dy is optional and can be replaced by nothing to compute it via automatic differentiation. Jacobian should only be returned if it's more cheaply available than using AD, e.g. when using BFGS approximation of the Hessian in IPOPT.
     forward::F
     # The conditions function f(x, y) which must be 0 at ystar. Note that variables which don't show up in x and are closed over instead will be assumed to have no effect on the optimal solution. So it's the user's responsibility to ensure x includes all the interesting variables to be differentiated with respect to.
@@ -12,10 +12,19 @@ struct ImplicitFunction{matrixfree, F, C, L, T} <: Function
     error_on_tol_violation::Bool
 end
 function ImplicitFunction(
-    forward::F, conditions::C; tol::T = 1e-5, error_on_tol_violation = false, matrixfree = false, linear_solver::L = _default_solver(matrixfree),
-) where {F, C, L, T}
-    return ImplicitFunction{matrixfree, F, C, L, T}(
-        forward, conditions, linear_solver, tol, error_on_tol_violation,
+    forward::F,
+    conditions::C;
+    tol::T = 1e-5,
+    error_on_tol_violation = false,
+    matrixfree = false,
+    linear_solver::L = _default_solver(matrixfree),
+) where {F,C,L,T}
+    return ImplicitFunction{matrixfree,F,C,L,T}(
+        forward,
+        conditions,
+        linear_solver,
+        tol,
+        error_on_tol_violation,
     )
 end
 
@@ -34,7 +43,9 @@ end
 (f::ImplicitFunction)() = f.forward()[1]
 
 function ChainRulesCore.rrule(
-    rc::RuleConfig, f::ImplicitFunction{matrixfree}, x,
+    rc::RuleConfig,
+    f::ImplicitFunction{matrixfree},
+    x,
 ) where {matrixfree}
     ystar, _dfdy = f.forward(x)
     flat_ystar, unflatten_y = flatten(ystar)
@@ -48,9 +59,10 @@ function ChainRulesCore.rrule(
             pby = nothing
         end
     else
-        _conditions_y = flat_y -> begin
-            return flatten(f.conditions(x, unflatten_y(flat_y)))[1]
-        end
+        _conditions_y =
+            flat_y -> begin
+                return flatten(f.conditions(x, unflatten_y(flat_y)))[1]
+            end
         if matrixfree
             dfdy = nothing
             _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
@@ -65,9 +77,14 @@ function ChainRulesCore.rrule(
         return flatten(conditions(x, ystar))[1]
     end
     residual, pbx = rrule_via_ad(rc, _conditions_x, f.conditions, x)
-    return ystar, ∇ -> begin
+    return ystar,
+    ∇ -> begin
         if norm(residual) > f.tol && f.error_on_tol_violation
-            throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
+            throw(
+                ArgumentError(
+                    "The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient.",
+                ),
+            )
         end
         if matrixfree
             ∇f, ∇x = Base.tail(pbx(f.linear_solver(pby, -flatten(∇)[1])))
@@ -75,9 +92,7 @@ function ChainRulesCore.rrule(
             ∇f, ∇x = Base.tail(pbx(f.linear_solver(dfdy', -flatten(∇)[1])))
         end
         ∇imf = Tangent{typeof(f)}(
-            conditions = Tangent{typeof(f.conditions)}(;
-                ChainRulesCore.backing(∇f)...,
-            ),
+            conditions = Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...),
         )
         if norm(residual) <= f.tol
             return (∇imf, ∇x)
@@ -88,7 +103,8 @@ function ChainRulesCore.rrule(
 end
 
 function ChainRulesCore.rrule(
-    rc::RuleConfig, f::ImplicitFunction{matrixfree},
+    rc::RuleConfig,
+    f::ImplicitFunction{matrixfree},
 ) where {matrixfree}
     ystar, _dfdy = f.forward()
     flat_ystar, unflatten_y = flatten(ystar)
@@ -119,9 +135,14 @@ function ChainRulesCore.rrule(
         return flatten(conditions(ystar))[1]
     end
     residual, pbf = rrule_via_ad(rc, _conditions, f.conditions)
-    return ystar, ∇ -> begin
+    return ystar,
+    ∇ -> begin
         if norm(residual) > f.tol && f.error_on_tol_violation
-            throw(ArgumentError("The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient."))
+            throw(
+                ArgumentError(
+                    "The acceptable tolerance for the implicit function theorem is not satisfied for the current problem. Please double check your function definition, increase the tolerance, or set `error_on_tol_violation` to false to ignore the violation and return `NaN`s for the gradient.",
+                ),
+            )
         end
         if matrixfree
             ∇f = pbf(f.linear_solver(pby, -flatten(∇)[1]))[2]
@@ -129,9 +150,7 @@ function ChainRulesCore.rrule(
             ∇f = pbf(f.linear_solver(dfdy', -flatten(∇)[1]))[2]
         end
         ∇imf = Tangent{typeof(f)}(
-            conditions = Tangent{typeof(f.conditions)}(;
-                ChainRulesCore.backing(∇f)...,
-            ),
+            conditions = Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...),
         )
         if norm(residual) <= f.tol
             return (∇imf,)

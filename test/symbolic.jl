@@ -12,12 +12,22 @@ function _test_function_scoping()
 end
 
 @testset "symbolify" begin
-    @testset "Functions - simplify = $simplify, sparse = $sparse" for simplify in (false, true), sparse in (false, true)
+    @testset "Functions - simplify = $simplify, sparse = $sparse" for simplify in
+                                                                      (false, true),
+        sparse in (false, true)
+
         f = symbolify(sum, rand(3); hessian = false, simplify, sparse)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
 
-        f = symbolify(x -> 2(x.^2) + x[1] * ones(3), rand(3); hessian = false, simplify, sparse).flat_f
+        f =
+            symbolify(
+                x -> 2(x .^ 2) + x[1] * ones(3),
+                rand(3);
+                hessian = false,
+                simplify,
+                sparse,
+            ).flat_f
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
         if sparse
@@ -45,9 +55,12 @@ end
         @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
     end
 
-    @testset "Model - first order = $first_order - sparse = $sparse" for first_order in (true, false), sparse in (true, false)
+    @testset "Model - first order = $first_order - sparse = $sparse" for first_order in
+                                                                         (true, false),
+        sparse in (true, false)
+
         f = (x::AbstractVector) -> sqrt(x[2])
-        g = (x::AbstractVector, a, b) -> (a*x[1] + b)^3 - x[2]
+        g = (x::AbstractVector, a, b) -> (a * x[1] + b)^3 - x[2]
         options = IpoptOptions(; first_order, sparse)
         m = Model(f)
         addvar!(m, [0.0, 0.0], [10.0, 10.0])
@@ -62,8 +75,8 @@ end
             @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
             @test issparse(NonconvexCore.sparse_jacobian(vsym_model.ineq_constraints, xv))
         end
-        @test abs(r.minimum - sqrt(8/27)) < 1e-6
-        @test norm(r.minimizer - [1/3, 8/27]) < 1e-6
+        @test abs(r.minimum - sqrt(8 / 27)) < 1e-6
+        @test norm(r.minimizer - [1 / 3, 8 / 27]) < 1e-6
     end
 
     @testset "function-scope" begin
@@ -77,16 +90,11 @@ end
         addvar!(model, fill(1.0, 4), fill(5.0, 4))
         add_ineq_constraint!(model, x -> 25.0 - x[1] * x[2] * x[3] * x[4])
         add_eq_constraint!(model, x -> 40.0 - x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2)
-        sym_model = symbolify(
-           model;
-           hessian = true,
-           sparse = true,
-           simplify = true,
-       )
-       vsym_model, xv, _ = NonconvexCore.tovecmodel(sym_model)
-       @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
-       @test issparse(NonconvexCore.sparse_jacobian(vsym_model.ineq_constraints, xv))
-       @test issparse(NonconvexCore.sparse_jacobian(vsym_model.eq_constraints, xv))
+        sym_model = symbolify(model; hessian = true, sparse = true, simplify = true)
+        vsym_model, xv, _ = NonconvexCore.tovecmodel(sym_model)
+        @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
+        @test issparse(NonconvexCore.sparse_jacobian(vsym_model.ineq_constraints, xv))
+        @test issparse(NonconvexCore.sparse_jacobian(vsym_model.eq_constraints, xv))
     end
 
     # https://github.com/JuliaNonconvex/Nonconvex.jl/issues/140
@@ -95,21 +103,16 @@ end
         addvar!(model, fill(1.0, 4), fill(5.0, 4))
         add_ineq_constraint!(model, x -> 25.0 - x[1] * x[2] * x[3] * x[4])
         add_eq_constraint!(model, x -> 40.0 - x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2)
-        sym_model = symbolify(
-            model;
-            hessian = true,
-            sparse = true,
-            simplify = true,
-        )
+        sym_model = symbolify(model; hessian = true, sparse = true, simplify = true)
         vsym_model, xv, _ = NonconvexCore.tovecmodel(sym_model)
         @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
         @test issparse(NonconvexCore.sparse_jacobian(vsym_model.ineq_constraints, xv))
         @test issparse(NonconvexCore.sparse_jacobian(vsym_model.eq_constraints, xv))
         result = optimize(
-           sym_model,
-           IpoptAlg(),
-           [1.0, 5.0, 5.0, 1.0];
-           options = IpoptOptions(; first_order = false, sparse = true),
-       )
+            sym_model,
+            IpoptAlg(),
+            [1.0, 5.0, 5.0, 1.0];
+            options = IpoptOptions(; first_order = false, sparse = true),
+        )
     end
 end

@@ -1,15 +1,15 @@
-struct LazyJacobian{symmetric, J1, J2}
+struct LazyJacobian{symmetric,J1,J2}
     jvp::J1
     jtvp::J2
 end
-function LazyJacobian(; jvp=nothing, jtvp=nothing, symmetric=false)
+function LazyJacobian(; jvp = nothing, jtvp = nothing, symmetric = false)
     return LazyJacobian{symmetric}(jvp, jtvp)
 end
 function LazyJacobian{symmetric}(jvp = nothing, jtvp = nothing) where {symmetric}
     if jvp === jtvp === nothing
         throw(ArgumentError("Both the jvp and jtvp operators cannot be nothing."))
     end
-    if symmetric 
+    if symmetric
         if jvp !== nothing
             _jtvp = _jvp = jvp
         else
@@ -19,7 +19,7 @@ function LazyJacobian{symmetric}(jvp = nothing, jtvp = nothing) where {symmetric
         _jvp = jvp
         _jtvp = jtvp
     end
-    return LazyJacobian{symmetric, typeof(_jvp), typeof(_jtvp)}(_jvp, _jtvp)
+    return LazyJacobian{symmetric,typeof(_jvp),typeof(_jtvp)}(_jvp, _jtvp)
 end
 
 struct LazyJacobianTransposed{J}

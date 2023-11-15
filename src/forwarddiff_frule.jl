@@ -13,23 +13,33 @@ function _fd_frule(sig)
             flat_xpartials = reduce(vcat, transpose.(ForwardDiff.partials.(flatx)))
 
             xprimals = unflattenx(flat_xprimals)
-            xpartials1 = unflattenx(flat_xpartials[:,1])
+            xpartials1 = unflattenx(flat_xpartials[:, 1])
 
-            yprimals, ypartials1 = ChainRulesCore.frule(
-                (NoTangent(), xpartials1...), f, xprimals...,
-            )
+            yprimals, ypartials1 =
+                ChainRulesCore.frule((NoTangent(), xpartials1...), f, xprimals...)
             flat_yprimals, unflatteny = NonconvexCore.flatten(yprimals)
             flat_ypartials1, _ = NonconvexCore.flatten(ypartials1)
-            flat_ypartials = hcat(reshape(flat_ypartials1, :, 1), ntuple(Val(CS - 1)) do i
-                xpartialsi = unflattenx(flat_xpartials[:, i+1])
-                _, ypartialsi = ChainRulesCore.frule((NoTangent(), xpartialsi...), f, xprimals...)
-                return NonconvexCore.flatten(ypartialsi)[1]
-            end...)
+            flat_ypartials = hcat(
+                reshape(flat_ypartials1, :, 1),
+                ntuple(Val(CS - 1)) do i
+                    xpartialsi = unflattenx(flat_xpartials[:, i+1])
+                    _, ypartialsi = ChainRulesCore.frule(
+                        (NoTangent(), xpartialsi...),
+                        f,
+                        xprimals...,
+                    )
+                    return NonconvexCore.flatten(ypartialsi)[1]
+                end...,
+            )
 
             T = ForwardDiff.tagtype(eltype(flatx))
-            flaty = ForwardDiff.Dual{T}.(
-                flat_yprimals, ForwardDiff.Partials.(NTuple{CS}.(eachrow(flat_ypartials))),
-            )
+            flaty =
+                ForwardDiff.Dual{
+                    T,
+                }.(
+                    flat_yprimals,
+                    ForwardDiff.Partials.(NTuple{CS}.(eachrow(flat_ypartials))),
+                )
             return unflatteny(flaty)
         end
     end

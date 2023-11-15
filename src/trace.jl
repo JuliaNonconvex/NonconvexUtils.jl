@@ -1,10 +1,14 @@
-struct TraceFunction{F, V} <: Function
+struct TraceFunction{F,V} <: Function
     f::F
     trace::V
     on_call::Bool
     on_grad::Bool
 end
-function TraceFunction(f; on_call::Union{Bool, Nothing} = nothing, on_grad::Union{Bool, Nothing} = nothing)
+function TraceFunction(
+    f;
+    on_call::Union{Bool,Nothing} = nothing,
+    on_grad::Union{Bool,Nothing} = nothing,
+)
     if on_call === on_grad === nothing
         _on_call = true
         _on_grad = true
@@ -29,7 +33,8 @@ function (tf::TraceFunction)(x)
 end
 function ChainRulesCore.rrule(rc::RuleConfig, tf::TraceFunction, x)
     v, pb = ChainRulesCore.rrule_via_ad(rc, tf.f, x)
-    return v, Δ -> begin
+    return v,
+    Δ -> begin
         Δin = pb(Δ)
         g = Δin[2] isa Array ? Δin[2] : Δin[2].val.f()
         if tf.on_grad
@@ -38,9 +43,7 @@ function ChainRulesCore.rrule(rc::RuleConfig, tf::TraceFunction, x)
         return (Δin[1], g)
     end
 end
-function ChainRulesCore.frule(
-    rc::RuleConfig, (_, Δx), tf::TraceFunction, x,
-)
+function ChainRulesCore.frule(rc::RuleConfig, (_, Δx), tf::TraceFunction, x)
     v, g = ChainRulesCore.frule(rc, (NoTangent(), Δx), tf.f, x)
     if tf.on_grad
         if !isempty(tf.trace) && x == tf.trace[end].input
@@ -51,9 +54,7 @@ function ChainRulesCore.frule(
     end
     return v, g
 end
-function ChainRulesCore.frule(
-    (_, Δx), tf::TraceFunction, x,
-)
+function ChainRulesCore.frule((_, Δx), tf::TraceFunction, x)
     v, g = ChainRulesCore.frule((NoTangent(), Δx), tf.f, x)
     if tf.on_grad
         if !isempty(tf.trace) && x == tf.trace[end].input
