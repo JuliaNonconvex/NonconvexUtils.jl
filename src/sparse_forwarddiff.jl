@@ -212,6 +212,10 @@ struct UnflattennedFunction{F1,F2,V,U} <: Function
     flatteny::Bool
 end
 (f::UnflattennedFunction)(x...) = f.f(x...)
+function NonconvexCore.tovecfunc(f::UnflattennedFunction, ::AbstractVector{<:Real}; flatteny = true)
+    @assert flatteny == f.flatteny
+    return f.flat_f, f.v, f.unflatten
+end
 function NonconvexCore.tovecfunc(f::UnflattennedFunction, x...; flatteny = true)
     @assert flatteny == f.flatteny
     return f.flat_f, f.v, f.unflatten
