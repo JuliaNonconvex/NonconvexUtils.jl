@@ -11,6 +11,7 @@ export forwarddiffy,
     symbolify
 
 using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
+const AD = AbstractDifferentiation
 using Zygote, LinearMaps, IterativeSolvers, NonconvexCore, SparseArrays
 using NonconvexCore: flatten, tovecfunc, _sparsevec, _sparse_reshape
 using MacroTools
