@@ -204,19 +204,6 @@ function ChainRulesCore.rrule(::typeof(nograd_cache!), A, B)
     nograd_cache!(A, B), _ -> (NoTangent(), NoTangent(), NoTangent())
 end
 
-struct UnflattennedFunction{F1,F2,V,U} <: Function
-    f::F1
-    flat_f::F2
-    v::V
-    unflatten::U
-    flatteny::Bool
-end
-(f::UnflattennedFunction)(x...) = f.f(x...)
-function NonconvexCore.tovecfunc(f::UnflattennedFunction, x...; flatteny = true)
-    @assert flatteny == f.flatteny
-    return f.flat_f, f.v, f.unflatten
-end
-
 function sparsify(f, x...; flatteny = true, kwargs...)
     flat_f, vx, unflatteny = tovecfunc(f, x...; flatteny)
     if length(x) == 1 && x[1] isa AbstractVector

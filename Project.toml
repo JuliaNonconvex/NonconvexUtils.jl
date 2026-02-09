@@ -13,7 +13,6 @@ LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 NonconvexCore = "035190e5-69f1-488f-aaab-becca2889735"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
-SparseDiffTools = "47a9eef4-7e08-11e9-0b38-333d64bd3804"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
@@ -26,9 +25,9 @@ IterativeSolvers = "0.8, 0.9"
 LinearMaps = "3"
 MacroTools = "0.5"
 NonconvexCore = "1.1"
-SparseDiffTools = "2"
 Symbolics = "5"
 Zygote = "0.5, 0.6"
+SparseArrays = "1.12.0"
 julia = "1"
 
 [extras]
@@ -37,10 +36,9 @@ NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 NamedTupleTools = "d9ec5142-1e00-5aa0-9d6a-321866360f50"
 NonconvexIpopt = "bf347577-a06d-49ad-a669-8c0e005493b8"
 ReverseDiff = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [targets]
-test = ["DifferentiableFlatten", "NamedTupleTools", "NonconvexIpopt", "NLsolve", "ReverseDiff", "SparseArrays", "StableRNGs", "Test", "Tracker"]
+test = ["DifferentiableFlatten", "NamedTupleTools", "NonconvexIpopt", "NLsolve", "ReverseDiff", "StableRNGs", "Test", "Tracker"]
