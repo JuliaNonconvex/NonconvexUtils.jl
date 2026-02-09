@@ -1,3 +1,20 @@
+struct UnflattennedFunction{F1,F2,V,U} <: Function
+    f::F1
+    flat_f::F2
+    v::V
+    unflatten::U
+    flatteny::Bool
+end
+(f::UnflattennedFunction)(x...) = f.f(x...)
+function NonconvexCore.tovecfunc(f::UnflattennedFunction, x...; flatteny = true)
+    @assert flatteny == f.flatteny
+    return f.flat_f, f.v, f.unflatten
+end
+function NonconvexCore.tovecfunc(f::UnflattennedFunction, x::AbstractVector{<:Real}...; flatteny = true)
+    @assert flatteny == f.flatteny
+    return f.flat_f, f.v, f.unflatten
+end
+
 struct SymbolicFunction{F,G,H,X} <: Function
     f::F
     g::G
