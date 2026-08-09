@@ -20,13 +20,7 @@
                     f = (p, x) -> A * x + nonlin * x .^ 2 - p
                     solve_x =
                         (p) -> begin
-                            xstar =
-                                nlsolve(
-                                    x -> f(p, x),
-                                    zeros(N),
-                                    method = :anderson,
-                                    m = 10,
-                                ).zero
+                            xstar = nlsolve(x -> f(p, x), zeros(N), method = :anderson, m = 10).zero
                             return xstar,
                             jac ? Zygote.jacobian(x -> f(p, x), xstar)[1] : nothing
                         end
@@ -55,6 +49,30 @@
             )
             obj = p -> sum(imf(p))
             @test_throws ArgumentError Zygote.gradient(obj, p0)[1]
+        end
+
+        @testset "Configurable jac_backend" begin
+            # The default is AutoZygote(); a different ADTypes backend must
+            # produce the same implicit-function gradient. Flattening of the
+            # conditions output and of ystar happens before the backend sees it.
+            rng = StableRNG(123)
+            nonlin = 0.1
+            N = 10
+            A = spdiagm(0 => fill(10.0, N), 1 => fill(-1.0, N - 1), -1 => fill(-1.0, N - 1))
+            p0 = randn(rng, N)
+            f = (p, x) -> A * x + nonlin * x .^ 2 - p
+            solve_x =
+                (p) -> begin
+                    xstar = nlsolve(x -> f(p, x), zeros(N), method = :anderson, m = 10).zero
+                    return xstar, nothing
+                end
+            g_analytic = gmres((A + Diagonal(2 * nonlin * solve_x(p0)[1]))', ones(N))
+            for backend in (ADTypes.AutoZygote(), ADTypes.AutoForwardDiff())
+                imf = ImplicitFunction(solve_x, f; jac_backend = backend)
+                obj = p -> sum(imf(p))
+                g_auto = Zygote.gradient(obj, p0)[1]
+                @test norm(g_analytic - g_auto) < 1e-6
+            end
         end
 
         @testset "Non-vector input and output" begin

@@ -27,10 +27,13 @@ differentiation through iterative solvers.
   gradient/Hessian, a trace buffer, a forward/conditions pair, …).
   Differentiability is supplied by defining `ChainRulesCore.rrule` and (where
   useful) `frule` on the wrapper, not by intercepting the wrapped callable.
-- **Backend-agnostic AD**: `AbstractDiffFunction` carries an
-  `AbstractDifferentiation` backend, so the same wrapper works with ForwardDiff,
-  Zygote, Tracker, etc. via ChainRulesCore. Do not hardcode a backend where a
-  parameter will do.
+- **Backend-agnostic AD**: `diffiy` wraps a function with a
+  `DifferentiationInterface` backend (an ADTypes backend such as
+  `AutoForwardDiff()`, `AutoZygote()`, `AutoReverseDiff()`, `AutoTracker()`)
+  via `DifferentiationInterface.DifferentiateWith`, so the same wrapper works
+  with ForwardDiff, Zygote, Tracker, etc. via ChainRulesCore. `ImplicitFunction`
+  likewise takes a `jac_backend` keyword (default `AutoZygote()`) for its
+  conditions Jacobian. Do not hardcode a backend where a parameter will do.
 - **Implicit function theorem**: `ImplicitFunction` differentiates through a
   fixed-point/iterative solve by solving `df/dy' \ v` with a configurable
   `linear_solver`. The `matrixfree` type parameter switches between a dense

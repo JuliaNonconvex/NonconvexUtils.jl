@@ -1,5 +1,5 @@
 # Parameters x, variables y, residuals f
-struct ImplicitFunction{matrixfree,F,C,L,T} <: Function
+struct ImplicitFunction{matrixfree,F,C,L,T,B} <: Function
     # A function which takes x as input and returns a tuple (ystar, df/dy) such that f(x, ystar) = 0. df/dy is optional and can be replaced by nothing to compute it via automatic differentiation. Jacobian should only be returned if it's more cheaply available than using AD, e.g. when using BFGS approximation of the Hessian in IPOPT.
     forward::F
     # The conditions function f(x, y) which must be 0 at ystar. Note that variables which don't show up in x and are closed over instead will be assumed to have no effect on the optimal solution. So it's the user's responsibility to ensure x includes all the interesting variables to be differentiated with respect to.
@@ -10,6 +10,8 @@ struct ImplicitFunction{matrixfree,F,C,L,T} <: Function
     tol::T
     # A booolean to decide whether or not to error if the tolerance is violated, i.e. norm(f(x, ystar)) > tol. If false, we return a gradient of NaNs.
     error_on_tol_violation::Bool
+    # Backend used to compute the conditions Jacobian df/dy when `forward` does not return it. Any ADTypes backend supported by DifferentiationInterface; defaults to `AutoZygote()`.
+    jac_backend::B
 end
 function ImplicitFunction(
     forward::F,
@@ -18,13 +20,15 @@ function ImplicitFunction(
     error_on_tol_violation = false,
     matrixfree = false,
     linear_solver::L = _default_solver(matrixfree),
-) where {F,C,L,T}
-    return ImplicitFunction{matrixfree,F,C,L,T}(
+    jac_backend::B = ADTypes.AutoZygote(),
+) where {F,C,L,T,B}
+    return ImplicitFunction{matrixfree,F,C,L,T,B}(
         forward,
         conditions,
         linear_solver,
         tol,
         error_on_tol_violation,
+        jac_backend,
     )
 end
 
@@ -68,8 +72,8 @@ function ChainRulesCore.rrule(
             _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
             pby = v -> _pby(v)[2]
         else
-            # Change this to AbstractDifferentiation
-            dfdy = Zygote.jacobian(_conditions_y, flat_ystar)[1]
+            dfdy =
+                DifferentiationInterface.jacobian(_conditions_y, f.jac_backend, flat_ystar)
             pby = nothing
         end
     end
@@ -126,8 +130,8 @@ function ChainRulesCore.rrule(
             _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
             pby = v -> _pby(v)[2]
         else
-            # Change this to AbstractDifferentiation
-            dfdy = Zygote.jacobian(_conditions_y, flat_ystar)[1]
+            dfdy =
+                DifferentiationInterface.jacobian(_conditions_y, f.jac_backend, flat_ystar)
             pby = nothing
         end
     end

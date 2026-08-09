@@ -147,12 +147,13 @@ complexity a code review should flag and ask to see a benchmark for.
 ## NonconvexUtils.jl-specific coding notes
 
 - The package wraps arbitrary callables in `Function` subtypes
-  (`AbstractDiffFunction`, `CustomGradFunction`, `CustomHessianFunction`,
-  `TraceFunction`, `ImplicitFunction`, `SymbolicFunction`,
-  `UnflattennedFunction`) and makes them differentiable by defining
-  `ChainRulesCore.rrule` (and, where applicable, `frule`). New wrappers must
-  define the appropriate rule(s) so they compose with Zygote and other AD
-  systems that consume ChainRulesCore.
+  (`CustomGradFunction`, `CustomHessianFunction`, `TraceFunction`,
+  `ImplicitFunction`, `SymbolicFunction`, `UnflattennedFunction`) and makes
+  them differentiable by defining `ChainRulesCore.rrule` (and, where
+  applicable, `frule`). `diffiy` instead wraps a function with
+  `DifferentiationInterface.DifferentiateWith`, which defines the chain rule
+  automatically. New wrappers must define the appropriate rule(s) so they
+  compose with Zygote and other AD systems that consume ChainRulesCore.
 - Preserve the type parameters of these `struct`s when constructing or passing
   instances (e.g. `ImplicitFunction{matrixfree,F,C,L,T}`,
   `LazyJacobian{symmetric,J1,J2}`). The parameters encode behavioral contracts

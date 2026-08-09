@@ -1,27 +1,28 @@
-struct AbstractDiffFunction{F,B} <: Function
-    f::F
-    backend::B
-end
-ForwardDiffFunction(f) = AbstractDiffFunction(f, AD.ForwardDiffBackend())
-(f::AbstractDiffFunction)(x) = f.f(x)
-function ChainRulesCore.rrule(f::AbstractDiffFunction, x::AbstractVector)
-    v, (∇,) = AbstractDifferentiation.value_and_jacobian(f.backend, f.f, x)
-    return v, Δ -> (NoTangent(), ∇' * Δ)
-end
-function ChainRulesCore.frule((_, Δx), f::AbstractDiffFunction, x::AbstractVector)
-    v, (∇,) = AbstractDifferentiation.value_and_jacobian(f.backend, f.f, x)
-    return v, ∇ * Δx
-end
-@ForwardDiff_frule (f::AbstractDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
+"""
+    diffiy(f, backend, x...)
+    diffiy(f, x...)
+    diffiy(model, backend; objective=true, ineq_constraints=true, eq_constraints=true, sd_constraints=true)
 
-# does not assume vector input and output
-forwarddiffy(f_or_m, x...) = abstractdiffy(f_or_m, AD.ForwardDiffBackend(), x...)
-function abstractdiffy(f, backend, x...)
+Wrap `f` (or every objective/constraint of `model`) so that it is differentiated
+with the [`DifferentiationInterface`](https://github.com/JuliaDiff/DifferentiationInterface.jl)
+backend `backend` (an ADTypes backend such as `AutoForwardDiff()`,
+`AutoZygote()`, `AutoReverseDiff()`, `AutoTracker()`). The wrapper defines a
+chain rule, so the result is differentiable from any outer AD that consumes
+ChainRulesCore (Zygote, ForwardDiff, etc.).
+
+When `backend` is omitted it defaults to `AutoForwardDiff()`.
+
+`f` may take non-vector inputs and return non-vector outputs: they are flattened
+via `NonconvexCore.tovecfunc` and unflattened back, so flattening always happens
+before the function or input reaches DifferentiationInterface.
+"""
+diffiy(f_or_m, x...) = diffiy(f_or_m, ADTypes.AutoForwardDiff(), x...)
+function diffiy(f, backend, x...)
     flat_f, _, unflatteny = tovecfunc(f, x...)
-    ad_flat_f = AbstractDiffFunction(flat_f, backend)
-    return (x...,) -> unflatteny(ad_flat_f(flatten(x)[1]))
+    di_flat_f = DifferentiationInterface.DifferentiateWith(flat_f, backend)
+    return (x...,) -> unflatteny(di_flat_f(flatten(x)[1]))
 end
-function abstractdiffy(
+function diffiy(
     model::NonconvexCore.AbstractModel,
     backend;
     objective = true,
@@ -32,7 +33,7 @@ function abstractdiffy(
     x = getmin(model)
     if objective
         obj = NonconvexCore.Objective(
-            abstractdiffy(model.objective, backend, x),
+            diffiy(model.objective, backend, x),
             flags = model.objective.flags,
         )
     else
@@ -44,7 +45,7 @@ function abstractdiffy(
             NonconvexCore.VectorOfFunctions(
                 map(model.ineq_constraints.fs) do c
                     return NonconvexCore.IneqConstraint(
-                        abstractdiffy(c, backend, x),
+                        diffiy(c, backend, x),
                         c.rhs,
                         c.dim,
                         c.flags,
@@ -60,7 +61,7 @@ function abstractdiffy(
             NonconvexCore.VectorOfFunctions(
                 map(model.eq_constraints.fs) do c
                     return NonconvexCore.EqConstraint(
-                        abstractdiffy(c, backend, x),
+                        diffiy(c, backend, x),
                         c.rhs,
                         c.dim,
                         c.flags,
@@ -75,7 +76,7 @@ function abstractdiffy(
             length(model.sd_constraints.fs) != 0 ?
             NonconvexCore.VectorOfFunctions(
                 map(model.sd_constraints.fs) do c
-                    return NonconvexCore.SDConstraint(abstractdiffy(c, backend, x), c.dim)
+                    return NonconvexCore.SDConstraint(diffiy(c, backend, x), c.dim)
                 end,
             ) : NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
     else

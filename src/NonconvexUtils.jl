@@ -1,8 +1,7 @@
 module NonconvexUtils
 
-export forwarddiffy,
-    abstractdiffy,
-    AD,
+export diffiy,
+    DI,
     TraceFunction,
     CustomGradFunction,
     LazyJacobian,
@@ -10,8 +9,10 @@ export forwarddiffy,
     ImplicitFunction,
     symbolify
 
-using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
-const AD = AbstractDifferentiation
+using ChainRulesCore, ForwardDiff, LinearAlgebra
+using DifferentiationInterface
+const DI = DifferentiationInterface
+using ADTypes
 using Zygote, LinearMaps, IterativeSolvers, NonconvexCore, SparseArrays
 using NonconvexCore: flatten, tovecfunc, _sparsevec, _sparse_reshape
 using MacroTools
