@@ -46,7 +46,7 @@ problems in this repository.
    Zygote/ChainRulesCore gradient looks wrong. The package's wrappers must
    differentiate correctly; compare the `rrule`/`frule` pullback against a
    finite-difference reference.
-5. **Isolate** the failing component: which wrapper (`AbstractDiffFunction`,
+5. **Isolate** the failing component: which wrapper (`diffiy`,
    `CustomGradFunction`, `ImplicitFunction`, `TraceFunction`,
    `SymbolicFunction`, `LazyJacobian`), which backend (ForwardDiff, Zygote,
    Tracker, ReverseDiff), and which input path (vector vs. arbitrary

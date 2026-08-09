@@ -1,9 +1,6 @@
 module NonconvexUtils
 
-export forwarddiffy,
-    abstractdiffy,
-    diffiy,
-    AD,
+export diffiy,
     DI,
     TraceFunction,
     CustomGradFunction,
@@ -12,8 +9,7 @@ export forwarddiffy,
     ImplicitFunction,
     symbolify
 
-using ChainRulesCore, AbstractDifferentiation, ForwardDiff, LinearAlgebra
-const AD = AbstractDifferentiation
+using ChainRulesCore, ForwardDiff, LinearAlgebra
 using DifferentiationInterface
 const DI = DifferentiationInterface
 using ADTypes

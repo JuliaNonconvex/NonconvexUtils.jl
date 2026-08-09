@@ -118,26 +118,3 @@
     end
 end
 
-# Backward compatibility: the deprecated `abstractdiffy` / `forwarddiffy` aliases
-# must still work, routing the old AbstractDifferentiation backends through to
-# their ADTypes equivalents.
-@testset "abstractdiffy and forwarddiffy (deprecated aliases)" begin
-    global T = Nothing
-    f = function (x)
-        global T = eltype(x)
-        return sum(x)
-    end
-    x = [1.0, 1.0]
-
-    _f = forwarddiffy(f, x)
-    Zygote.gradient(_f, x)
-    @test T <: ForwardDiff.Dual
-
-    _f = abstractdiffy(f, AD.ReverseDiffBackend(), x)
-    Zygote.gradient(_f, x)
-    @test T <: ReverseDiff.TrackedReal
-
-    _f = abstractdiffy(f, AD.TrackerBackend(), x)
-    Zygote.gradient(_f, x)
-    @test T <: Tracker.TrackedReal
-end

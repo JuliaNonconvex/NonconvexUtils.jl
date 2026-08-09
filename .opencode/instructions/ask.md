@@ -26,9 +26,13 @@ questions about this repository.
 
 ## Key concepts in NonconvexUtils.jl
 
-- **`AbstractDiffFunction` / `forwarddiffy` / `abstractdiffy`**: wrap a
-  function with an `AbstractDifferentiation` backend and expose it via
-  `ChainRulesCore.rrule`/`frule` (`src/abstractdiff.jl`).
+- **`diffiy`**: wrap a function (or every objective/constraint of a Nonconvex
+  model) with a `DifferentiationInterface` backend (an ADTypes backend such as
+  `AutoForwardDiff()`, `AutoZygote()`, `AutoReverseDiff()`, `AutoTracker()`)
+  via `DifferentiationInterface.DifferentiateWith`, so it is differentiable
+  from any outer AD that consumes ChainRulesCore. Non-vector inputs/outputs
+  are flattened via `NonconvexCore.tovecfunc` and unflattened back
+  (`src/abstractdiff.jl`).
 - **`CustomGradFunction` / `CustomHessianFunction`**: supply a user-provided
   gradient (and Hessian) and wire them into `rrule` so a function with a known
   derivative still composes with AD (`src/custom.jl`).
