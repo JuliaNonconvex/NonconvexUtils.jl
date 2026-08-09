@@ -1,6 +1,6 @@
 name = "NonconvexUtils"
 uuid = "c48e48a2-1f5e-44ff-8799-c8e168d11d1b"
-version = "0.5.1"
+version = "0.5.2"
 authors = ["Mohamed Tarek <mohdibntarek@gmail.com> and contributors"]
 
 [deps]
