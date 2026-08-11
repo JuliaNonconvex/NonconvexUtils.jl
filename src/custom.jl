@@ -1,3 +1,5 @@
+import Zygote: unthunk
+
 struct CustomGradFunction{F,G} <: Function
     f::F
     g::G
@@ -15,16 +17,17 @@ function ChainRulesCore.rrule(f::CustomGradFunction, x::AbstractVector)
         else
             G = f.g(x)
         end
+        Δv = unthunk(Δ)
         if G isa AbstractVector
-            return (NoTangent(), G * Δ)
+            return (NoTangent(), G * Δv)
         elseif G isa LazyJacobian
-            return (NoTangent(), G' * Δ)
+            return (NoTangent(), G' * Δv)
         else
-            spΔ = dropzeros!(sparse(copy(Δ)))
+            spΔ = dropzeros!(sparse(Δv))
             if length(spΔ.nzval) == 1
                 return (NoTangent(), G[spΔ.nzind[1], :] * spΔ.nzval[1])
             else
-                return (NoTangent(), G' * Δ)
+                return (NoTangent(), G' * Δv)
             end
         end
     end
@@ -70,16 +73,16 @@ end
 function ChainRulesCore.rrule(f::CustomHessianFunction, x)
     g = CustomGradFunction(f.g, f.h)
     G = g(x)
-    return f(x), Δ -> (NoTangent(), G * Δ)
+    return f(x), Δ -> (NoTangent(), G * unthunk(Δ))
 end
 function ChainRulesCore.frule((_, Δx), f::CustomHessianFunction, x::AbstractVector)
     g = CustomGradFunction(f.g, f.h)
     v, ∇ = f(x), g(x)
     project_to = ProjectTo(v)
     if ∇ isa AbstractVector && Δx isa AbstractVector
-        return v, project_to(∇' * Δx)
+        return v, project_to(∇' * unthunk(Δx))
     else
-        return v, project_to(∇ * Δx)
+        return v, project_to(∇ * unthunk(Δx))
     end
 end
 @ForwardDiff_frule (f::CustomHessianFunction)(x::AbstractVector{<:ForwardDiff.Dual})
