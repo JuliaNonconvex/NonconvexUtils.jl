@@ -33,8 +33,9 @@ function diffiy(
     x = getmin(model)
     if objective
         obj = NonconvexCore.Objective(
-            diffiy(model.objective, backend, x),
-            flags = model.objective.flags,
+            diffiy(model.objective.f, backend, x),
+            model.objective.multiple,
+            model.objective.flags,
         )
     else
         obj = model.objective
