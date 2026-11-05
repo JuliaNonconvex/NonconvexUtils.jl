@@ -50,3 +50,16 @@ end
     result = pullback(Δ)
     @test result[2] == fakeg * 1.0
 end
+
+@testset "CustomGradFunction evaluates the custom gradient once per forward pass" begin
+    # Regression test: the custom gradient used to be evaluated on every
+    # pullback application (once per Jacobian row in value_jacobian).
+    calls = Ref(0)
+    g = x -> (calls[] += 1; [1.0 0.0; 0.0 1.0])
+    f = CustomGradFunction(identity, g)
+    calls[] = 0
+    val, jac = NonconvexCore.value_jacobian(f, [1.0, 2.0])
+    @test val == [1.0, 2.0]
+    @test jac == [1.0 0.0; 0.0 1.0]
+    @test calls[] == 1
+end
