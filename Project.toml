@@ -31,7 +31,7 @@ NonconvexCore = "1.5"
 SparseArrays = "1"
 Symbolics = "6, 7"
 Zygote = "0.5, 0.6, 0.7"
-julia = "1"
+julia = "1.10"
 
 [extras]
 DifferentiableFlatten = "c78775a3-ee38-4681-b694-0504db4f5dc7"
