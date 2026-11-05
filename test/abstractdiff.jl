@@ -118,3 +118,18 @@
     end
 end
 
+
+@testset "diffiy preserves the objective multiple" begin
+    # Regression test: diffiy used to wrap the whole Objective, baking the
+    # current multiple into the inner function and resetting the outer
+    # multiple to 1, so a later set_objective_multiple! scaled twice.
+    m = Model(x -> x[1]^2 + x[2]^2)
+    addvar!(m, [-1.0, -1.0], [1.0, 1.0])
+    m.objective.multiple[] = 2.0
+    dm = diffiy(m, ADTypes.AutoForwardDiff())
+    @test dm.objective.multiple[] == 2.0
+    # The wrapped objective evaluates the multiple exactly once.
+    vm, x0, _ = NonconvexCore.tovecmodel(dm)
+    obj = NonconvexCore.getobjective(vm)
+    @test obj(x0) ≈ 2.0 * (x0[1]^2 + x0[2]^2)
+end
