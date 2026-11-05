@@ -35,6 +35,19 @@
         @test f.trace == []
         Zygote.gradient(f, [3.0])
         @test f.trace == []
+
+        # Scalar input in reverse mode previously crashed with
+        # FieldError: type Float64 has no field val.
+        tf = TraceFunction(sin, on_grad = true)
+        @test Zygote.gradient(tf, 1.0)[1] ≈ cos(1.0)
+        @test length(tf.trace) == 1
+
+        # Primal call followed by AD at the same point previously crashed with
+        # FieldError: type NamedTuple has no field grad (default config).
+        tf2 = TraceFunction(sum)
+        tf2([2.0, 2.0])
+        ForwardDiff.gradient(tf2, [3.0, 3.0])
+        @test length(tf2.trace) == 2
     end
 
     @testset "Forward-mode" begin
