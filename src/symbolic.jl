@@ -94,15 +94,16 @@ function ChainRulesCore.rrule(f::SymbolicFunction, x)
     g = SymbolicFunction(f.g, f.h, nothing, f.x)
     if val isa Real
         G = g(x)
-        return val, Δ -> (NoTangent(), G * Δ)
+        return val, Δ -> (NoTangent(), G * _unthunk(Δ))
     else
         G = g(x)
         return val, Δ -> begin
-            spΔ = dropzeros!(sparse(copy(Δ)))
+            Δv = _unthunk(Δ)
+            spΔ = dropzeros!(sparse(Δv))
             if length(spΔ.nzval) == 1
                 return (NoTangent(), G[spΔ.nzind[1], :] * spΔ.nzval[1])
             else
-                return (NoTangent(), G' * Δ)
+                return (NoTangent(), G' * Δv)
             end
         end
     end

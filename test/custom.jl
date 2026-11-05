@@ -1,3 +1,5 @@
+using ChainRulesCore
+
 @testset "CustomGradFunction" begin
     fakeg = [2.0]
     f = CustomGradFunction(sum, x -> fakeg)
@@ -28,4 +30,23 @@ end
     @test norm(H - fakeH) < 1e-6
     H = ForwardDiff.jacobian(x -> ForwardDiff.gradient(f, x), [1.0, 1.0])
     @test norm(H - fakeH) < 1e-6
+end
+
+@testset "CustomGradFunction rrule with InplaceableThunk" begin
+    fakeJ = [1.0 2.0; 0.0 -1.0]
+    f = CustomGradFunction(identity, x -> fakeJ)
+    v, pullback = ChainRulesCore.rrule(f, [1.0, 1.0])
+    Δ = ChainRulesCore.InplaceableThunk((d, x) -> d, ChainRulesCore.Thunk(() -> [1.0, 1.0]))
+    result = pullback(Δ)
+    @test result[2] == fakeJ' * [1.0, 1.0]
+end
+
+@testset "CustomHessianFunction rrule with InplaceableThunk" begin
+    fakeg = [2.0, 2.0]
+    fakeH = [3.0 -1.0; -1.0 2.0]
+    f = CustomHessianFunction(sum, x -> fakeg, x -> fakeH)
+    v, pullback = ChainRulesCore.rrule(f, [1.0, 1.0])
+    Δ = ChainRulesCore.InplaceableThunk((d, x) -> d, ChainRulesCore.Thunk(() -> 1.0))
+    result = pullback(Δ)
+    @test result[2] == fakeg * 1.0
 end
