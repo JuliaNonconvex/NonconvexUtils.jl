@@ -1,6 +1,6 @@
 # NEWS
 
-## 1.0.1
+## 1.1.0
 
 - Fixed Zygote 0.7 compatibility: rrule pullbacks now unthunk thunked
   cotangents (`InplaceableThunk`/`Thunk`) that Zygote 0.7 hands to rules,
