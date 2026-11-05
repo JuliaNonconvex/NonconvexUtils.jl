@@ -1,3 +1,12 @@
+_unthunk(x) = x
+_unthunk(x::ChainRulesCore.AbstractThunk) = ChainRulesCore.unthunk(x)
+_unthunk(x::ChainRulesCore.Tangent) = begin
+    P = typeof(x).parameters[1]
+    return ChainRulesCore.Tangent{P}(; map(_unthunk, ChainRulesCore.backing(x))...)
+end
+_unthunk(x::NamedTuple) = map(_unthunk, x)
+_unthunk(x::Tuple) = map(_unthunk, x)
+
 # Parameters x, variables y, residuals f
 struct ImplicitFunction{matrixfree,F,C,L,T,B} <: Function
     # A function which takes x as input and returns a tuple (ystar, df/dy) such that f(x, ystar) = 0. df/dy is optional and can be replaced by nothing to compute it via automatic differentiation. Jacobian should only be returned if it's more cheaply available than using AD, e.g. when using BFGS approximation of the Hessian in IPOPT.
@@ -83,6 +92,7 @@ function ChainRulesCore.rrule(
     residual, pbx = rrule_via_ad(rc, _conditions_x, f.conditions, x)
     return ystar,
     ∇ -> begin
+        ∇ = _unthunk(∇)
         if norm(residual) > f.tol && f.error_on_tol_violation
             throw(
                 ArgumentError(
@@ -141,6 +151,7 @@ function ChainRulesCore.rrule(
     residual, pbf = rrule_via_ad(rc, _conditions, f.conditions)
     return ystar,
     ∇ -> begin
+        ∇ = _unthunk(∇)
         if norm(residual) > f.tol && f.error_on_tol_violation
             throw(
                 ArgumentError(
@@ -164,7 +175,23 @@ function ChainRulesCore.rrule(
     end
 end
 
+_nanlike(x::Real) = NaN
+_nanlike(x::AbstractArray) = begin
+    y = similar(x)
+    fill!(y, NaN)
+    return y
+end
+_nanlike(x::NamedTuple) = map(_nanlike, x)
+_nanlike(x::Tuple) = map(_nanlike, x)
+_nanlike(x::ChainRulesCore.Tangent) = begin
+    P = typeof(x).parameters[1]
+    return ChainRulesCore.Tangent{P}(; map(_nanlike, ChainRulesCore.backing(x))...)
+end
+_nanlike(x::ChainRulesCore.AbstractZero) = x
+# Fallback for tangent representations we cannot inspect structurally, e.g.
+# `ProjectTo{...}` projections returned by ChainRules rules.
+_nanlike(x) = x
+
 function nanlike(x)
-    flat, un = flatten(x)
-    return un(similar(flat) .= NaN)
+    return _nanlike(_unthunk(x))
 end
