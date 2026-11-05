@@ -7,16 +7,16 @@ end
 (f::CustomGradFunction)(x::AbstractVector) = f.f(x)
 function ChainRulesCore.rrule(f::CustomGradFunction, x::AbstractVector)
     v = f.f(x)
-    return v, Δ -> begin
-        if f.g === nothing
-            if v isa Real
-                G = spzeros(eltype(v), length(x))
-            else
-                G = spzeros(eltype(v), length(v), length(x))
-            end
+    if f.g === nothing
+        if v isa Real
+            G = spzeros(eltype(v), length(x))
         else
-            G = f.g(x)
+            G = spzeros(eltype(v), length(v), length(x))
         end
+    else
+        G = f.g(x)
+    end
+    return v, Δ -> begin
         Δv = unthunk(Δ)
         if G isa AbstractVector
             return (NoTangent(), G * Δv)
