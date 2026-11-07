@@ -1,5 +1,10 @@
 # NEWS
 
+## 1.1.2
+
+- Added tests for the previously untested `@ForwardDiff_frule` bridge cases:
+  vector-valued outputs, struct-valued outputs and callable-struct functors.
+
 ## 1.1.1
 
 - `TraceFunction` reverse-mode rrule no longer crashes for scalar or struct
