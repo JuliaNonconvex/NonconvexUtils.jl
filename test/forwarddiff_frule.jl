@@ -1,7 +1,3 @@
-# TODO tests:
-## Multiple outputs
-## Struct output
-## Functor f - fix first
 @testset "ForwardDiff frule" begin
     @eval begin
         f1(x, y) = (x + 2y) .^ 2
@@ -148,5 +144,48 @@
         g = ForwardDiff.gradient(x -> sum(_eigvals!(Symmetric(x))), rand(4, 4))
         @test frule_count == 16
         @test norm(g - I) < 1e-6
+    end
+
+    @eval begin
+        # Multiple outputs: the frule returns a vector-valued tangent.
+        f3(x) = [x[1]^2, x[2]^3]
+        function ChainRulesCore.frule((_, Δx), ::typeof(f3), x::AbstractVector)
+            return f3(x), [2 * x[1] * Δx[1], 3 * x[2]^2 * Δx[2]]
+        end
+        NonconvexUtils.@ForwardDiff_frule f3(x::AbstractVector{<:ForwardDiff.Dual})
+
+        # Struct output: the frule returns a struct-valued tangent.
+        f4(x) = MyStruct(x[1]^2, x[2]^3)
+        function ChainRulesCore.frule((_, Δx), ::typeof(f4), x::AbstractVector)
+            return f4(x), MyStruct(2 * x[1] * Δx[1], 3 * x[2]^2 * Δx[2])
+        end
+        NonconvexUtils.@ForwardDiff_frule f4(x::AbstractVector{<:ForwardDiff.Dual})
+
+        # Functor: the frule is defined on the callable instance.
+        struct VectorShift{T}
+            c::T
+        end
+        function (f::VectorShift)(x::AbstractVector)
+            return (x .+ f.c) .^ 2
+        end
+        function ChainRulesCore.frule((_, Δx), f::VectorShift, x::AbstractVector)
+            return f(x), 2 .* (x .+ f.c) .* Δx
+        end
+        NonconvexUtils.@ForwardDiff_frule (f::VectorShift)(x::AbstractVector{<:ForwardDiff.Dual})
+    end
+
+    @testset "Multiple outputs" begin
+        J = ForwardDiff.jacobian(f3, [1.0, 2.0])
+        @test J ≈ [2.0 0.0; 0.0 12.0]
+    end
+
+    @testset "Struct output" begin
+        g = ForwardDiff.gradient(x -> sum(f4(x)), [1.0, 2.0])
+        @test g ≈ [2.0, 12.0]
+    end
+
+    @testset "Functor" begin
+        g = ForwardDiff.gradient(x -> sum(VectorShift(2.0)(x)), [1.0, 2.0])
+        @test g ≈ [6.0, 8.0]
     end
 end
