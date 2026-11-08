@@ -7,9 +7,14 @@ export diffiy,
     LazyJacobian,
     CustomHessianFunction,
     ImplicitFunction,
-    symbolify
+    symbolify,
+    JuMPSymbolicFunction,
+    jump_symbolic_gradient,
+    jump_symbolic_hessian
 
 using ChainRulesCore, ForwardDiff, LinearAlgebra
+import MathOptInterface
+const MOI = MathOptInterface
 using DifferentiationInterface
 const DI = DifferentiationInterface
 using ADTypes
@@ -25,5 +30,6 @@ include("trace.jl")
 include("custom.jl")
 include("implicit.jl")
 include("symbolic.jl")
+include("jumpsymbolic.jl")
 
 end
