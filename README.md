@@ -1,5 +1,7 @@
 # NonconvexUtils
 
+<img src="https://raw.githubusercontent.com/JuliaNonconvex/NonconvexUtils.jl/main/docs/src/assets/logo.png" width="120" align="right"/>
+
 [![CI](https://github.com/JuliaNonconvex/NonconvexUtils.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaNonconvex/NonconvexUtils.jl/actions)
 [![Coverage](https://codecov.io/gh/JuliaNonconvex/NonconvexUtils.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/JuliaNonconvex/NonconvexUtils.jl)
 
