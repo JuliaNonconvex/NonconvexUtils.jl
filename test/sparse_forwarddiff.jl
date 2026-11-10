@@ -1,46 +1,46 @@
 @testset "sparsify" begin
     @testset "Functions" begin
-        f = sparsify(sum, rand(3); hessian = false).flat_f
+        f = sparsify(sum, rand(3); hessian=false).flat_f
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
 
-        f = sparsify(x -> 2(x .^ 2) + x[1] * ones(3), rand(3); hessian = false).flat_f
+        f = sparsify(x -> 2(x .^ 2) + x[1] * ones(3), rand(3); hessian=false).flat_f
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
         @test NonconvexCore.sparse_jacobian(f, x) ≈ Zygote.jacobian(f, x)[1]
         @test NonconvexCore.sparse_jacobian(f, x) isa SparseMatrixCSC
 
-        f = sparsify(sum, rand(3); hessian = true)
+        f = sparsify(sum, rand(3); hessian=true)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, rand(3))
         @test NonconvexCore.sparse_hessian(f, x) ≈ Zygote.hessian(f, x)
         @test NonconvexCore.sparse_hessian(f, x) isa SparseMatrixCSC
 
-        f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian = true)
+        f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian=true)
         x = rand(3)
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
         @test NonconvexCore.sparse_hessian(f, x) ≈ Zygote.hessian(f, x)
         @test NonconvexCore.sparse_hessian(f, x) isa SparseMatrixCSC
 
-        f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian = true)
+        f = sparsify(x -> sum(x)^2 + x[1], rand(3); hessian=true)
         x = rand(3)
         @test Zygote.jacobian(x -> Zygote.gradient(f, x)[1], x)[1] ≈
-              ForwardDiff.hessian(f, x)
+            ForwardDiff.hessian(f, x)
 
-        f = sparsify(x -> [sum(x)^2, x[1]], rand(3); hessian = true)
+        f = sparsify(x -> [sum(x)^2, x[1]], rand(3); hessian=true)
         x = rand(3)
         g = x -> sum(f(x))
         @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
         @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
 
-        f = sparsify(x -> [0.0, 0.0], rand(3); hessian = true)
+        f = sparsify(x -> [0.0, 0.0], rand(3); hessian=true)
         x = rand(3)
         g = x -> sum(f(x))
         @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
         @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
 
-        f = sparsify(x -> 0.0, rand(3); hessian = true)
+        f = sparsify(x -> 0.0, rand(3); hessian=true)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, x)
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
@@ -58,8 +58,8 @@
         add_ineq_constraint!(m, x -> g(x, -1, 1))
 
         alg = IpoptAlg()
-        sp_model = sparsify(m; hessian = !first_order)
-        r = NonconvexIpopt.optimize(sp_model, alg, [1.234, 2.345], options = options)
+        sp_model = sparsify(m; hessian=(!first_order))
+        r = NonconvexIpopt.optimize(sp_model, alg, [1.234, 2.345], options=options)
         @test abs(r.minimum - sqrt(8 / 27)) < 1e-6
         @test norm(r.minimizer - [1 / 3, 8 / 27]) < 1e-6
     end

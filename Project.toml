@@ -19,23 +19,34 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
 ADTypes = "1"
+Aqua = "0.8, 0.9"
 ChainRulesCore = "1"
 DifferentiableFlatten = "0.1, 0.2"
 DifferentiationInterface = "0.7"
 ForwardDiff = "0.10, 1"
 IterativeSolvers = "0.8, 0.9"
+JET = "0.8, 0.9, 0.10, 0.11, 0.12"
+JSON = "1"
+julia = "1.10"
 LinearAlgebra = "1"
 LinearMaps = "3"
 MacroTools = "0.5"
+NamedTupleTools = "0.14"
+NLsolve = "4"
 NonconvexCore = "1.5"
+NonconvexIpopt = "0.4, 0.6, 0.7"
+ReverseDiff = "1"
 SparseArrays = "1"
+StableRNGs = "1"
 Symbolics = "6, 7"
+Test = "1"
+Tracker = "0.2"
 Zygote = "0.5, 0.6, 0.7"
-julia = "1.10"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 DifferentiableFlatten = "c78775a3-ee38-4681-b694-0504db4f5dc7"
 NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 NamedTupleTools = "d9ec5142-1e00-5aa0-9d6a-321866360f50"
@@ -46,4 +57,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tracker = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
 
 [targets]
-test = ["DifferentiableFlatten", "NamedTupleTools", "NonconvexIpopt", "NLsolve", "ReverseDiff", "StableRNGs", "Test", "Tracker"]
+test = ["Aqua", "JET", "JSON", "DifferentiableFlatten", "NamedTupleTools", "NonconvexIpopt", "NLsolve", "ReverseDiff", "StableRNGs", "Test", "Tracker"]

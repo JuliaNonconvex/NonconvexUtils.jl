@@ -15,11 +15,7 @@ struct SparseForwardDiffFunction{F,F!,Y,J,JP,JC,JJ,JJ!,G,HH1,HP,HC,HH2} <: Funct
 end
 
 function SparseForwardDiffFunction(
-    f,
-    x::AbstractVector;
-    hessian = false,
-    jac_pattern = nothing,
-    hess_pattern = nothing,
+    f, x::AbstractVector; hessian=false, jac_pattern=nothing, hess_pattern=nothing
 )
     val = f(x)
     _f = x -> _sparsevec(f(x))
@@ -41,7 +37,7 @@ function SparseForwardDiffFunction(
     end
     vecJ! =
         (G, x) -> begin
-            _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x, colorvec = jac_colors)
+            _jac = SparseDiffTools.forwarddiff_color_jacobian(_f, x; colorvec=jac_colors)
             G .= _sparsevec(_jac)
             return G
         end
@@ -51,11 +47,7 @@ function SparseForwardDiffFunction(
             xT = eltype(x)
             if length(jac.nzval) > 0
                 _jac = SparseDiffTools.forwarddiff_color_jacobian(
-                    _f,
-                    x,
-                    colorvec = jac_colors,
-                    sparsity = jac,
-                    jac_prototype = xT.(jac),
+                    _f, x; colorvec=jac_colors, sparsity=jac, jac_prototype=xT.(jac)
                 )
                 project_to = ChainRulesCore.ProjectTo(jac)
                 return project_to(copy(_jac))
@@ -64,9 +56,11 @@ function SparseForwardDiffFunction(
             end
         end
     if hessian
-        hess_pattern =
-            hess_pattern === nothing ? Symbolics.jacobian_sparsity(vecJ!, G, x) :
+        hess_pattern = if hess_pattern === nothing
+            Symbolics.jacobian_sparsity(vecJ!, G, x)
+        else
             hess_pattern
+        end
         if nnz(hess_pattern) > 0
             hess = float.(hess_pattern)
             hess_colors = SparseDiffTools.matrix_colors(hess)
@@ -75,10 +69,10 @@ function SparseForwardDiffFunction(
                 x -> begin
                     _hess = SparseDiffTools.forwarddiff_color_jacobian(
                         _J,
-                        x,
-                        colorvec = hess_colors,
-                        sparsity = hess_pattern,
-                        jac_prototype = hess,
+                        x;
+                        colorvec=hess_colors,
+                        sparsity=hess_pattern,
+                        jac_prototype=hess,
                     )
                     project_to = ChainRulesCore.ProjectTo(hess)
                     return project_to(copy(_hess))
@@ -198,42 +192,34 @@ function nograd_cache!(A, B)
     return A
 end
 function ChainRulesCore.frule(_, ::typeof(nograd_cache!), A, B)
-    nograd_cache!(A, B), NoTangent()
+    return nograd_cache!(A, B), NoTangent()
 end
 function ChainRulesCore.rrule(::typeof(nograd_cache!), A, B)
-    nograd_cache!(A, B), _ -> (NoTangent(), NoTangent(), NoTangent())
+    return nograd_cache!(A, B), _ -> (NoTangent(), NoTangent(), NoTangent())
 end
 
-function sparsify(f, x...; flatteny = true, kwargs...)
+function sparsify(f, x...; flatteny=true, kwargs...)
     flat_f, vx, unflatteny = tovecfunc(f, x...; flatteny)
     if length(x) == 1 && x[1] isa AbstractVector
         flat_f = f
         sp_flat_f = SparseForwardDiffFunction(flat_f, vx; kwargs...)
         return UnflattennedFunction(
-            x -> unflatteny(sp_flat_f(x)),
-            sp_flat_f,
-            vx,
-            unflatteny,
-            flatteny,
+            x -> unflatteny(sp_flat_f(x)), sp_flat_f, vx, unflatteny, flatteny
         )
     else
         sp_flat_f = SparseForwardDiffFunction(flat_f, vx; kwargs...)
         return UnflattennedFunction(
-            x -> unflatteny(sp_flat_f(flatten(x)[1])),
-            sp_flat_f,
-            vx,
-            unflatteny,
-            flatteny,
+            x -> unflatteny(sp_flat_f(flatten(x)[1])), sp_flat_f, vx, unflatteny, flatteny
         )
     end
 end
 
 function sparsify(
     model::NonconvexCore.AbstractModel;
-    objective = true,
-    ineq_constraints = true,
-    eq_constraints = true,
-    sd_constraints = true,
+    objective=true,
+    ineq_constraints=true,
+    eq_constraints=true,
+    sd_constraints=true,
     kwargs...,
 )
     x = getmin(model)
@@ -247,48 +233,47 @@ function sparsify(
         obj = model.objective
     end
     if ineq_constraints
-        ineq =
-            length(model.ineq_constraints.fs) != 0 ?
+        ineq = if length(model.ineq_constraints.fs) != 0
             NonconvexCore.VectorOfFunctions(
-                map(model.ineq_constraints.fs) do c
-                    return NonconvexCore.IneqConstraint(
-                        sparsify(c.f, x; kwargs...),
-                        c.rhs,
-                        c.dim,
-                        c.flags,
-                    )
-                end,
-            ) : NonconvexCore.VectorOfFunctions(NonconvexCore.IneqConstraint[])
+            map(model.ineq_constraints.fs) do c
+                return NonconvexCore.IneqConstraint(
+                    sparsify(c.f, x; kwargs...), c.rhs, c.dim, c.flags
+                )
+            end,
+        )
+        else
+            NonconvexCore.VectorOfFunctions(NonconvexCore.IneqConstraint[])
+        end
     else
         ineq = model.ineq_constraints
     end
     if eq_constraints
-        eq =
-            length(model.eq_constraints.fs) != 0 ?
+        eq = if length(model.eq_constraints.fs) != 0
             NonconvexCore.VectorOfFunctions(
-                map(model.eq_constraints.fs) do c
-                    return NonconvexCore.EqConstraint(
-                        sparsify(c.f, x; kwargs...),
-                        c.rhs,
-                        c.dim,
-                        c.flags,
-                    )
-                end,
-            ) : NonconvexCore.VectorOfFunctions(NonconvexCore.EqConstraint[])
+            map(model.eq_constraints.fs) do c
+                return NonconvexCore.EqConstraint(
+                    sparsify(c.f, x; kwargs...), c.rhs, c.dim, c.flags
+                )
+            end,
+        )
+        else
+            NonconvexCore.VectorOfFunctions(NonconvexCore.EqConstraint[])
+        end
     else
         eq = model.eq_constraints
     end
     if sd_constraints
-        sd =
-            length(model.sd_constraints.fs) != 0 ?
+        sd = if length(model.sd_constraints.fs) != 0
             NonconvexCore.VectorOfFunctions(
-                map(model.sd_constraints.fs) do c
-                    return NonconvexCore.SDConstraint(
-                        sparsify(c.f, x; flatteny = false, kwargs...),
-                        c.dim,
-                    )
-                end,
-            ) : NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
+            map(model.sd_constraints.fs) do c
+                return NonconvexCore.SDConstraint(
+                    sparsify(c.f, x; flatteny=false, kwargs...), c.dim
+                )
+            end,
+        )
+        else
+            NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
+        end
     else
         sd = model.sd_constraints
     end
@@ -300,13 +285,6 @@ function sparsify(
         throw("Unsupported model type.")
     end
     return ModelT(
-        obj,
-        eq,
-        ineq,
-        sd,
-        model.box_min,
-        model.box_max,
-        model.init,
-        model.integer,
+        obj, eq, ineq, sd, model.box_min, model.box_max, model.init, model.integer
     )
 end

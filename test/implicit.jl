@@ -2,8 +2,7 @@
     @testset "Non-closure conditions" begin
         @testset "Vector input and output - Jacobian $jac - matrixfree $matrixfree" for jac in
                                                                                         (
-                false,
-                true,
+                false, true
             ),
             matrixfree in (false, true)
             # Adapted from https://github.com/JuliaNLSolvers/NLsolve.jl/issues/205
@@ -20,12 +19,13 @@
                     f = (p, x) -> A * x + nonlin * x .^ 2 - p
                     solve_x =
                         (p) -> begin
-                            xstar = nlsolve(x -> f(p, x), zeros(N), method = :anderson, m = 10).zero
+                            xstar = nlsolve(x -> f(p, x), zeros(N), method=:anderson, m=10).zero
                             return xstar,
                             jac ? Zygote.jacobian(x -> f(p, x), xstar)[1] : nothing
                         end
-                    g_analytic =
-                        gmres((A + Diagonal(2 * nonlin * solve_x(p0)[1]))', ones(N))
+                    g_analytic = gmres(
+                        (A + Diagonal(2 * nonlin * solve_x(p0)[1]))', ones(N)
+                    )
                     return solve_x, f, p0, g_analytic
                 end
 
@@ -35,17 +35,13 @@
             g_auto = Zygote.gradient(obj, p0)[1]
             @test norm(g_analytic - g_auto) < 1e-6
 
-            imf = ImplicitFunction(solve_x, f; matrixfree, tol = 0.0)
+            imf = ImplicitFunction(solve_x, f; matrixfree, tol=0.0)
             obj = p -> sum(imf(p))
             g_auto = Zygote.gradient(obj, p0)[1]
             @test all(isnan.(g_auto))
 
             imf = ImplicitFunction(
-                solve_x,
-                f;
-                matrixfree,
-                tol = 0.0,
-                error_on_tol_violation = true,
+                solve_x, f; matrixfree, tol=0.0, error_on_tol_violation=true
             )
             obj = p -> sum(imf(p))
             @test_throws ArgumentError Zygote.gradient(obj, p0)[1]
@@ -63,12 +59,12 @@
             f = (p, x) -> A * x + nonlin * x .^ 2 - p
             solve_x =
                 (p) -> begin
-                    xstar = nlsolve(x -> f(p, x), zeros(N), method = :anderson, m = 10).zero
+                    xstar = nlsolve(x -> f(p, x), zeros(N), method=:anderson, m=10).zero
                     return xstar, nothing
                 end
             g_analytic = gmres((A + Diagonal(2 * nonlin * solve_x(p0)[1]))', ones(N))
             for backend in (ADTypes.AutoZygote(), ADTypes.AutoForwardDiff())
-                imf = ImplicitFunction(solve_x, f; jac_backend = backend)
+                imf = ImplicitFunction(solve_x, f; jac_backend=backend)
                 obj = p -> sum(imf(p))
                 g_auto = Zygote.gradient(obj, p0)[1]
                 @test norm(g_analytic - g_auto) < 1e-6
@@ -85,22 +81,22 @@
                         1 => fill(-1.0, N - 1),
                         -1 => fill(-1.0, N - 1),
                     )
-                    p0 = (a = randn(rng, N),)
+                    p0 = (a=randn(rng, N),)
                     f = (p, x) -> A * x.a + nonlin * x.a .^ 2 - p.a
                     solve_x =
                         (p) -> begin
                             return (
-                                a = nlsolve(
-                                    x -> f(p, (a = x,)),
+                                a=nlsolve(
+                                    x -> f(p, (a=x,)),
                                     zeros(N),
-                                    method = :anderson,
-                                    m = 10,
+                                    method=:anderson,
+                                    m=10,
                                 ).zero,
                             ),
                             nothing
                         end
                     g_analytic = (
-                        a = gmres((A + Diagonal(2 * nonlin * solve_x(p0)[1].a))', ones(N)),
+                        a=gmres((A + Diagonal(2 * nonlin * solve_x(p0)[1].a))', ones(N)),
                     )
                     return solve_x, f, p0, g_analytic
                 end
@@ -112,17 +108,13 @@
                 g_auto = Zygote.gradient(obj, p0)[1]
                 @test norm(g_analytic.a - g_auto.a) < 1e-6
 
-                imf = ImplicitFunction(solve_x, f; matrixfree, tol = 0.0)
+                imf = ImplicitFunction(solve_x, f; matrixfree, tol=0.0)
                 obj = p -> sum(imf(p).a)
                 g_auto = Zygote.gradient(obj, p0)[1]
                 @test all(isnan.(g_auto.a))
 
                 imf = ImplicitFunction(
-                    solve_x,
-                    f;
-                    matrixfree,
-                    tol = 0.0,
-                    error_on_tol_violation = true,
+                    solve_x, f; matrixfree, tol=0.0, error_on_tol_violation=true
                 )
                 obj = p -> sum(imf(p).a)
                 @test_throws ArgumentError Zygote.gradient(obj, p0)[1]
@@ -133,8 +125,7 @@
     @testset "Closure conditions" begin
         @testset "Vector input and output - Jacobian $jac - matrixfree $matrixfree" for jac in
                                                                                         (
-                false,
-                true,
+                false, true
             ),
             matrixfree in (false, true)
 
@@ -151,11 +142,10 @@
                     f = (x) -> A * x + nonlin * x .^ 2 - p0
                     solve_x =
                         () -> begin
-                            xstar = nlsolve(f, zeros(N), method = :anderson, m = 10).zero
+                            xstar = nlsolve(f, zeros(N), method=:anderson, m=10).zero
                             xstar, jac ? Zygote.jacobian(f, xstar)[1] : nothing
                         end
-                    g_analytic =
-                        gmres((A + Diagonal(2 * nonlin * solve_x()[1]))', ones(N))
+                    g_analytic = gmres((A + Diagonal(2 * nonlin * solve_x()[1]))', ones(N))
                     return p0, A, g_analytic
                 end
 
@@ -167,8 +157,7 @@
                     f = (x) -> A * x + nonlin * x .^ 2 - p
                     solve_x =
                         () -> begin
-                            return nlsolve(f, zeros(N), method = :anderson, m = 10).zero,
-                            nothing
+                            return nlsolve(f, zeros(N), method=:anderson, m=10).zero, nothing
                         end
                     imf = ImplicitFunction(solve_x, f; matrixfree)
                     return sum(imf())
@@ -183,10 +172,9 @@
                     f = (x) -> A * x + nonlin * x .^ 2 - p
                     solve_x =
                         () -> begin
-                            return nlsolve(f, zeros(N), method = :anderson, m = 10).zero,
-                            nothing
+                            return nlsolve(f, zeros(N), method=:anderson, m=10).zero, nothing
                         end
-                    imf = ImplicitFunction(solve_x, f; matrixfree, tol = 0.0)
+                    imf = ImplicitFunction(solve_x, f; matrixfree, tol=0.0)
                     return sum(imf())
                 end
             g_auto = Zygote.gradient(obj, p0)[1]
@@ -199,15 +187,10 @@
                     f = (x) -> A * x + nonlin * x .^ 2 - p
                     solve_x =
                         () -> begin
-                            return nlsolve(f, zeros(N), method = :anderson, m = 10).zero,
-                            nothing
+                            return nlsolve(f, zeros(N), method=:anderson, m=10).zero, nothing
                         end
                     imf = ImplicitFunction(
-                        solve_x,
-                        f;
-                        matrixfree,
-                        tol = 0.0,
-                        error_on_tol_violation = true,
+                        solve_x, f; matrixfree, tol=0.0, error_on_tol_violation=true
                     )
                     return sum(imf())
                 end
@@ -225,23 +208,23 @@
                         1 => fill(-1.0, N - 1),
                         -1 => fill(-1.0, N - 1),
                     )
-                    p0 = (a = randn(rng, N),)
+                    p0 = (a=randn(rng, N),)
                     _f = (x) -> A * x.a + nonlin * x.a .^ 2 - p0.a
                     _solve_x =
                         () -> begin
                             return (
-                                a = nlsolve(
-                                    x -> _f((a = x,)),
+                                a=nlsolve(
+                                    x -> _f((a=x,)),
                                     zeros(N),
-                                    method = :anderson,
-                                    m = 10,
+                                    method=:anderson,
+                                    m=10,
                                 ).zero,
                             ),
                             nothing
                         end
                     return p0,
                     A,
-                    (a = gmres((A + Diagonal(2 * nonlin * _solve_x()[1].a))', ones(N)),)
+                    (a=gmres((A + Diagonal(2 * nonlin * _solve_x()[1].a))', ones(N)),)
                 end
 
             for matrixfree in (false, true)
@@ -254,11 +237,11 @@
                         solve_x =
                             () -> begin
                                 return (
-                                    a = nlsolve(
-                                        x -> f((a = x,)),
+                                    a=nlsolve(
+                                        x -> f((a=x,)),
                                         zeros(N),
-                                        method = :anderson,
-                                        m = 10,
+                                        method=:anderson,
+                                        m=10,
                                     ).zero,
                                 ),
                                 nothing
@@ -277,16 +260,16 @@
                         solve_x =
                             () -> begin
                                 return (
-                                    a = nlsolve(
-                                        x -> f((a = x,)),
+                                    a=nlsolve(
+                                        x -> f((a=x,)),
                                         zeros(N),
-                                        method = :anderson,
-                                        m = 10,
+                                        method=:anderson,
+                                        m=10,
                                     ).zero,
                                 ),
                                 nothing
                             end
-                        imf = ImplicitFunction(solve_x, f; matrixfree, tol = 0.0)
+                        imf = ImplicitFunction(solve_x, f; matrixfree, tol=0.0)
                         return sum(imf().a)
                     end
                 g_auto = Zygote.gradient(obj, p0)[1]
@@ -300,21 +283,17 @@
                         solve_x =
                             () -> begin
                                 return (
-                                    a = nlsolve(
-                                        x -> f((a = x,)),
+                                    a=nlsolve(
+                                        x -> f((a=x,)),
                                         zeros(N),
-                                        method = :anderson,
-                                        m = 10,
+                                        method=:anderson,
+                                        m=10,
                                     ).zero,
                                 ),
                                 nothing
                             end
                         imf = ImplicitFunction(
-                            solve_x,
-                            f;
-                            matrixfree,
-                            tol = 0.0,
-                            error_on_tol_violation = true,
+                            solve_x, f; matrixfree, tol=0.0, error_on_tol_violation=true
                         )
                         return sum(imf().a)
                     end

@@ -23,7 +23,7 @@ end
     @test ForwardDiff.jacobian(x -> ForwardDiff.gradient(f, x), [1.0, 1.0]) == fakeH
 
     hvp = (x, v) -> fakeH * v
-    f = CustomHessianFunction(sum, x -> fakeg, hvp; hvp = true)
+    f = CustomHessianFunction(sum, x -> fakeg, hvp; hvp=true)
     H = Zygote.jacobian(x -> Zygote.gradient(f, x)[1], [1.0, 1.0])[1]
     @test norm(H - fakeH) < 1e-6
     H = ForwardDiff.jacobian(x -> Zygote.gradient(f, x)[1], [1.0, 1.0])

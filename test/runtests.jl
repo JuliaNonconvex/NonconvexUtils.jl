@@ -12,13 +12,6 @@ include("implicit.jl")
 include("symbolic.jl")
 # include("sparse_forwarddiff.jl")
 
-
 @testset "Aqua" begin
-    using Aqua
-    Aqua.test_all(NonconvexUtils)
-end
-
-@testset "JET" begin
-    using JET
-    JET.test_package(NonconvexUtils; target_modules=(NonconvexUtils,), analyze_from_definitions=true)
+    include("aqua.jl")
 end

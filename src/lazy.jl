@@ -2,10 +2,10 @@ struct LazyJacobian{symmetric,J1,J2}
     jvp::J1
     jtvp::J2
 end
-function LazyJacobian(; jvp = nothing, jtvp = nothing, symmetric = false)
+function LazyJacobian(; jvp=nothing, jtvp=nothing, symmetric=false)
     return LazyJacobian{symmetric}(jvp, jtvp)
 end
-function LazyJacobian{symmetric}(jvp = nothing, jtvp = nothing) where {symmetric}
+function LazyJacobian{symmetric}(jvp=nothing, jtvp=nothing) where {symmetric}
     if jvp === jtvp === nothing
         throw(ArgumentError("Both the jvp and jtvp operators cannot be nothing."))
     end

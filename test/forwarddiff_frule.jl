@@ -9,25 +9,20 @@
         end
         NonconvexUtils.@ForwardDiff_frule f1(x1::ForwardDiff.Dual, x2::ForwardDiff.Dual)
         NonconvexUtils.@ForwardDiff_frule f1(
-            x1::AbstractVector{<:ForwardDiff.Dual},
-            x2::AbstractVector{<:ForwardDiff.Dual},
+            x1::AbstractVector{<:ForwardDiff.Dual}, x2::AbstractVector{<:ForwardDiff.Dual}
         )
         NonconvexUtils.@ForwardDiff_frule f1(
-            x1::AbstractMatrix{<:ForwardDiff.Dual},
-            x2::AbstractMatrix{<:ForwardDiff.Dual},
+            x1::AbstractMatrix{<:ForwardDiff.Dual}, x2::AbstractMatrix{<:ForwardDiff.Dual}
         )
 
-        f2(x::NamedTuple, y::NamedTuple) = (a = x.a + y.a, b = x.b + y.b)
+        f2(x::NamedTuple, y::NamedTuple) = (a=x.a + y.a, b=x.b + y.b)
         f2(x::AbstractVector, y::AbstractVector) = f2.(x, y)
         function ChainRulesCore.frule(
-            (_, Δx1, Δx2),
-            ::typeof(f2),
-            x1::NamedTuple,
-            x2::NamedTuple,
+            (_, Δx1, Δx2), ::typeof(f2), x1::NamedTuple, x2::NamedTuple
         )
             global frule_count += 1
             println("frule was called")
-            return f2(x1, x2), (a = Δx1.a + Δx2.a, b = Δx1.b + Δx2.b)
+            return f2(x1, x2), (a=Δx1.a + Δx2.a, b=Δx1.b + Δx2.b)
         end
         NonconvexUtils.@ForwardDiff_frule f2(
             x1::NamedTuple{<:Any,<:Tuple{Vararg{<:ForwardDiff.Dual}}},
@@ -47,18 +42,14 @@
 
         f2(x::MyStruct, y::MyStruct) = MyStruct(x.a + y.a, x.b + y.b)
         function ChainRulesCore.frule(
-            (_, Δx1, Δx2),
-            ::typeof(f2),
-            x1::MyStruct,
-            x2::MyStruct,
+            (_, Δx1, Δx2), ::typeof(f2), x1::MyStruct, x2::MyStruct
         )
             global frule_count += 1
             println("frule was called")
             return f2(x1, x2), MyStruct(Δx1.a + Δx2.a, Δx1.b + Δx2.b)
         end
         NonconvexUtils.@ForwardDiff_frule f2(
-            x1::MyStruct{<:ForwardDiff.Dual},
-            x2::MyStruct{<:ForwardDiff.Dual},
+            x1::MyStruct{<:ForwardDiff.Dual}, x2::MyStruct{<:ForwardDiff.Dual}
         )
         Base.sum(s::MyStruct) = s.a + s.b
 
@@ -73,7 +64,7 @@
         # I recommend creating your own type to avoid piracy
         DifferentiableFlatten.@constructor Symmetric Symmetric
         import NamedTupleTools: ntfromstruct, structfromnt
-        ntfromstruct(a::Symmetric) = (data = a.data,)
+        ntfromstruct(a::Symmetric) = (data=a.data,)
         structfromnt(::Type{Symmetric}, x::NamedTuple) = Symmetric(x.data, :U)
         NonconvexUtils.@ForwardDiff_frule _eigvals!(A::Symmetric{<:ForwardDiff.Dual})
     end
@@ -120,7 +111,7 @@
     end
     frule_count = 0
     @testset "2 NamedTuple inputs - 1 real output" begin
-        _f = x -> sum(f2((a = x[1], b = x[2]), (a = x[3], b = x[4])))
+        _f = x -> sum(f2((a=x[1], b=x[2]), (a=x[3], b=x[4])))
         g1 = ForwardDiff.gradient(_f, rand(4))
         @test frule_count == 4
         cfg = ForwardDiff.GradientConfig(_f, rand(4), ForwardDiff.Chunk{2}())
@@ -171,7 +162,9 @@
         function ChainRulesCore.frule((_, Δx), f::VectorShift, x::AbstractVector)
             return f(x), 2 .* (x .+ f.c) .* Δx
         end
-        NonconvexUtils.@ForwardDiff_frule (f::VectorShift)(x::AbstractVector{<:ForwardDiff.Dual})
+        NonconvexUtils.@ForwardDiff_frule (f::VectorShift)(
+            x::AbstractVector{<:ForwardDiff.Dual}
+        )
     end
 
     @testset "Multiple outputs" begin

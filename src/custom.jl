@@ -32,7 +32,7 @@ function ChainRulesCore.rrule(f::CustomGradFunction, x::AbstractVector)
         end
     end
 end
-function ChainRulesCore.frule((_, Δx), f::CustomGradFunction, x::AbstractVector)
+function ChainRulesCore.frule((_, Δx)::Tuple, f::CustomGradFunction, x::AbstractVector)
     v = f.f(x)
     if f.g === nothing
         if v isa Real
@@ -64,7 +64,7 @@ struct CustomHessianFunction{F,G,H} <: Function
     f::F
     g::G
     h::H
-    function CustomHessianFunction(f::F, g::G, h::H; hvp = false) where {F,G,H}
+    function CustomHessianFunction(f::F, g::G, h::H; hvp=false) where {F,G,H}
         _h = hvp ? x -> LazyJacobian{true}(v -> h(x, v)) : h
         return new{F,G,typeof(_h)}(f, g, _h)
     end
@@ -75,7 +75,7 @@ function ChainRulesCore.rrule(f::CustomHessianFunction, x)
     G = g(x)
     return f(x), Δ -> (NoTangent(), G * unthunk(Δ))
 end
-function ChainRulesCore.frule((_, Δx), f::CustomHessianFunction, x::AbstractVector)
+function ChainRulesCore.frule((_, Δx)::Tuple, f::CustomHessianFunction, x::AbstractVector)
     g = CustomGradFunction(f.g, f.h)
     v, ∇ = f(x), g(x)
     project_to = ProjectTo(v)

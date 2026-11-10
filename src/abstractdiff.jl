@@ -25,10 +25,10 @@ end
 function diffiy(
     model::NonconvexCore.AbstractModel,
     backend;
-    objective = true,
-    ineq_constraints = true,
-    eq_constraints = true,
-    sd_constraints = true,
+    objective=true,
+    ineq_constraints=true,
+    eq_constraints=true,
+    sd_constraints=true,
 )
     x = getmin(model)
     if objective
@@ -41,45 +41,43 @@ function diffiy(
         obj = model.objective
     end
     if ineq_constraints
-        ineq =
-            length(model.ineq_constraints.fs) != 0 ?
+        ineq = if length(model.ineq_constraints.fs) != 0
             NonconvexCore.VectorOfFunctions(
-                map(model.ineq_constraints.fs) do c
-                    return NonconvexCore.IneqConstraint(
-                        diffiy(c, backend, x),
-                        c.rhs,
-                        c.dim,
-                        c.flags,
-                    )
-                end,
-            ) : NonconvexCore.VectorOfFunctions(NonconvexCore.IneqConstraint[])
+            map(model.ineq_constraints.fs) do c
+                return NonconvexCore.IneqConstraint(
+                    diffiy(c, backend, x), c.rhs, c.dim, c.flags
+                )
+            end,
+        )
+        else
+            NonconvexCore.VectorOfFunctions(NonconvexCore.IneqConstraint[])
+        end
     else
         ineq = model.ineq_constraints
     end
     if eq_constraints
-        eq =
-            length(model.eq_constraints.fs) != 0 ?
+        eq = if length(model.eq_constraints.fs) != 0
             NonconvexCore.VectorOfFunctions(
-                map(model.eq_constraints.fs) do c
-                    return NonconvexCore.EqConstraint(
-                        diffiy(c, backend, x),
-                        c.rhs,
-                        c.dim,
-                        c.flags,
-                    )
-                end,
-            ) : NonconvexCore.VectorOfFunctions(NonconvexCore.EqConstraint[])
+            map(model.eq_constraints.fs) do c
+                return NonconvexCore.EqConstraint(diffiy(c, backend, x), c.rhs, c.dim, c.flags)
+            end,
+        )
+        else
+            NonconvexCore.VectorOfFunctions(NonconvexCore.EqConstraint[])
+        end
     else
         eq = model.eq_constraints
     end
     if sd_constraints
-        sd =
-            length(model.sd_constraints.fs) != 0 ?
+        sd = if length(model.sd_constraints.fs) != 0
             NonconvexCore.VectorOfFunctions(
-                map(model.sd_constraints.fs) do c
-                    return NonconvexCore.SDConstraint(diffiy(c, backend, x), c.dim)
-                end,
-            ) : NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
+            map(model.sd_constraints.fs) do c
+                return NonconvexCore.SDConstraint(diffiy(c, backend, x), c.dim)
+            end,
+        )
+        else
+            NonconvexCore.VectorOfFunctions(NonconvexCore.SDConstraint[])
+        end
     else
         sd = model.sd_constraints
     end
@@ -91,13 +89,6 @@ function diffiy(
         throw("Unsupported model type.")
     end
     return ModelT(
-        obj,
-        eq,
-        ineq,
-        sd,
-        model.box_min,
-        model.box_max,
-        model.init,
-        model.integer,
+        obj, eq, ineq, sd, model.box_min, model.box_max, model.init, model.integer
     )
 end

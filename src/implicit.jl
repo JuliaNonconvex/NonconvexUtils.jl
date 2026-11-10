@@ -1,6 +1,6 @@
 _unthunk(x) = x
 _unthunk(x::ChainRulesCore.AbstractThunk) = ChainRulesCore.unthunk(x)
-_unthunk(x::ChainRulesCore.Tangent) = begin
+function _unthunk(x::ChainRulesCore.Tangent)
     P = typeof(x).parameters[1]
     return ChainRulesCore.Tangent{P}(; map(_unthunk, ChainRulesCore.backing(x))...)
 end
@@ -25,19 +25,14 @@ end
 function ImplicitFunction(
     forward::F,
     conditions::C;
-    tol::T = 1e-5,
-    error_on_tol_violation = false,
-    matrixfree = false,
-    linear_solver::L = _default_solver(matrixfree),
-    jac_backend::B = ADTypes.AutoZygote(),
+    tol::T=1e-5,
+    error_on_tol_violation=false,
+    matrixfree=false,
+    linear_solver::L=_default_solver(matrixfree),
+    jac_backend::B=ADTypes.AutoZygote(),
 ) where {F,C,L,T,B}
     return ImplicitFunction{matrixfree,F,C,L,T,B}(
-        forward,
-        conditions,
-        linear_solver,
-        tol,
-        error_on_tol_violation,
-        jac_backend,
+        forward, conditions, linear_solver, tol, error_on_tol_violation, jac_backend
     )
 end
 
@@ -56,9 +51,7 @@ end
 (f::ImplicitFunction)() = f.forward()[1]
 
 function ChainRulesCore.rrule(
-    rc::RuleConfig,
-    f::ImplicitFunction{matrixfree},
-    x,
+    rc::RuleConfig, f::ImplicitFunction{matrixfree}, x
 ) where {matrixfree}
     ystar, _dfdy = f.forward(x)
     flat_ystar, unflatten_y = flatten(ystar)
@@ -81,8 +74,9 @@ function ChainRulesCore.rrule(
             _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
             pby = v -> _pby(v)[2]
         else
-            dfdy =
-                DifferentiationInterface.jacobian(_conditions_y, f.jac_backend, flat_ystar)
+            dfdy = DifferentiationInterface.jacobian(
+                _conditions_y, f.jac_backend, flat_ystar
+            )
             pby = nothing
         end
     end
@@ -105,8 +99,8 @@ function ChainRulesCore.rrule(
         else
             ∇f, ∇x = Base.tail(pbx(f.linear_solver(dfdy', -flatten(∇)[1])))
         end
-        ∇imf = Tangent{typeof(f)}(
-            conditions = Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...),
+        ∇imf = Tangent{typeof(f)}(;
+            conditions=Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...)
         )
         if norm(residual) <= f.tol
             return (∇imf, ∇x)
@@ -117,8 +111,7 @@ function ChainRulesCore.rrule(
 end
 
 function ChainRulesCore.rrule(
-    rc::RuleConfig,
-    f::ImplicitFunction{matrixfree},
+    rc::RuleConfig, f::ImplicitFunction{matrixfree}
 ) where {matrixfree}
     ystar, _dfdy = f.forward()
     flat_ystar, unflatten_y = flatten(ystar)
@@ -140,8 +133,9 @@ function ChainRulesCore.rrule(
             _, _pby = rrule_via_ad(rc, _conditions_y, flat_ystar)
             pby = v -> _pby(v)[2]
         else
-            dfdy =
-                DifferentiationInterface.jacobian(_conditions_y, f.jac_backend, flat_ystar)
+            dfdy = DifferentiationInterface.jacobian(
+                _conditions_y, f.jac_backend, flat_ystar
+            )
             pby = nothing
         end
     end
@@ -164,8 +158,8 @@ function ChainRulesCore.rrule(
         else
             ∇f = pbf(f.linear_solver(dfdy', -flatten(∇)[1]))[2]
         end
-        ∇imf = Tangent{typeof(f)}(
-            conditions = Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...),
+        ∇imf = Tangent{typeof(f)}(;
+            conditions=Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...)
         )
         if norm(residual) <= f.tol
             return (∇imf,)
@@ -183,7 +177,7 @@ _nanlike(x::AbstractArray) = begin
 end
 _nanlike(x::NamedTuple) = map(_nanlike, x)
 _nanlike(x::Tuple) = map(_nanlike, x)
-_nanlike(x::ChainRulesCore.Tangent) = begin
+function _nanlike(x::ChainRulesCore.Tangent)
     P = typeof(x).parameters[1]
     return ChainRulesCore.Tangent{P}(; map(_nanlike, ChainRulesCore.backing(x))...)
 end

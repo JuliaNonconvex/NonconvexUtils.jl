@@ -4,10 +4,7 @@ function _test_function_scoping()
     set_objective!(model, x -> x[1])
     add_eq_constraint!(model, x -> x[1])
     return NonconvexIpopt.optimize(
-        symbolify(model),
-        IpoptAlg(),
-        [0.0];
-        options = IpoptOptions(),
+        symbolify(model), IpoptAlg(), [0.0]; options=IpoptOptions()
     )
 end
 
@@ -16,18 +13,13 @@ end
                                                                       (false, true),
         sparse in (false, true)
 
-        f = symbolify(sum, rand(3); hessian = false, simplify, sparse)
+        f = symbolify(sum, rand(3); hessian=false, simplify, sparse)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
 
-        f =
-            symbolify(
-                x -> 2(x .^ 2) + x[1] * ones(3),
-                rand(3);
-                hessian = false,
-                simplify,
-                sparse,
-            ).flat_f
+        f = symbolify(
+            x -> 2(x .^ 2) + x[1] * ones(3), rand(3); hessian=false, simplify, sparse
+        ).flat_f
         x = rand(3)
         @test Zygote.jacobian(f, x)[1] ≈ ForwardDiff.jacobian(f, x)
         if sparse
@@ -35,7 +27,7 @@ end
             @test NonconvexCore.sparse_jacobian(f, x) isa SparseMatrixCSC
         end
 
-        f = symbolify(sum, rand(3); hessian = true, simplify, sparse)
+        f = symbolify(sum, rand(3); hessian=true, simplify, sparse)
         x = rand(3)
         @test Zygote.gradient(f, x)[1] ≈ ForwardDiff.gradient(f, rand(3))
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, rand(3))
@@ -44,11 +36,11 @@ end
             @test NonconvexCore.sparse_hessian(f, x) isa SparseMatrixCSC
         end
 
-        f = symbolify(x -> norm(x) + x[1], rand(3); hessian = true, simplify, sparse)
+        f = symbolify(x -> norm(x) + x[1], rand(3); hessian=true, simplify, sparse)
         x = rand(3)
         @test Zygote.hessian(f, x) ≈ ForwardDiff.hessian(f, x)
 
-        f = symbolify(x -> [norm(x), x[1]], rand(3); hessian = true, simplify, sparse)
+        f = symbolify(x -> [norm(x), x[1]], rand(3); hessian=true, simplify, sparse)
         x = rand(3)
         g = x -> sum(f(x))
         @test Zygote.gradient(g, x)[1] ≈ ForwardDiff.gradient(g, x)
@@ -68,8 +60,8 @@ end
         add_ineq_constraint!(m, x -> g(x, -1, 1))
 
         alg = IpoptAlg()
-        sym_model = symbolify(m, hessian = !first_order, sparse = true)
-        r = NonconvexIpopt.optimize(sym_model, alg, [1.234, 2.345], options = options)
+        sym_model = symbolify(m, hessian=(!first_order), sparse=true)
+        r = NonconvexIpopt.optimize(sym_model, alg, [1.234, 2.345], options=options)
         if sparse
             vsym_model, xv, _ = NonconvexCore.tovecmodel(sym_model)
             @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
@@ -90,7 +82,7 @@ end
         addvar!(model, fill(1.0, 4), fill(5.0, 4))
         add_ineq_constraint!(model, x -> 25.0 - x[1] * x[2] * x[3] * x[4])
         add_eq_constraint!(model, x -> 40.0 - x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2)
-        sym_model = symbolify(model; hessian = true, sparse = true, simplify = true)
+        sym_model = symbolify(model; hessian=true, sparse=true, simplify=true)
         vsym_model, xv, _ = NonconvexCore.tovecmodel(sym_model)
         @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
         @test issparse(NonconvexCore.sparse_jacobian(vsym_model.ineq_constraints, xv))
@@ -103,7 +95,7 @@ end
         addvar!(model, fill(1.0, 4), fill(5.0, 4))
         add_ineq_constraint!(model, x -> 25.0 - x[1] * x[2] * x[3] * x[4])
         add_eq_constraint!(model, x -> 40.0 - x[1]^2 + x[2]^2 + x[3]^2 + x[4]^2)
-        sym_model = symbolify(model; hessian = true, sparse = true, simplify = true)
+        sym_model = symbolify(model; hessian=true, sparse=true, simplify=true)
         vsym_model, xv, _ = NonconvexCore.tovecmodel(sym_model)
         @test issparse(NonconvexCore.sparse_gradient(vsym_model.objective, xv))
         @test issparse(NonconvexCore.sparse_jacobian(vsym_model.ineq_constraints, xv))
@@ -112,7 +104,7 @@ end
             sym_model,
             IpoptAlg(),
             [1.0, 5.0, 5.0, 1.0];
-            options = IpoptOptions(; first_order = false, sparse = true),
+            options=IpoptOptions(; first_order=false, sparse=true),
         )
     end
 end
