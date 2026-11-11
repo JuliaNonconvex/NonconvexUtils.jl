@@ -5,6 +5,7 @@ module NonconvexUtils
 # NonconvexUtils` code keeps working. New code should `using NonconvexCore`
 # directly.
 
+using Reexport: @reexport
 @reexport using NonconvexCore
 
 end
