@@ -16,7 +16,7 @@ Utility functions for automatic differentiation (archived)
 
 History tracing, implicit functions, sparse ForwardDiff and other AD utilities; absorbed into NonconvexCore 2.
 
-NonconvexUtils.jl is part of the [JuliaNonconvex](https://github.com/JuliaNonconvex) ecosystem built on [NonconvexCore.jl](https://github.com/JuliaNonconvex/NonconvexCore.jl).
+NonconvexUtils under the [Nonconvex.jl](https://github.com/JuliaNonconvex/Nonconvex.jl) umbrella.jl is part of the [JuliaNonconvex](https://github.com/JuliaNonconvex) ecosystem built on [NonconvexCore.jl](https://github.com/JuliaNonconvex/NonconvexCore.jl).
 
 ## Documentation
 
