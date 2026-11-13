@@ -16,3 +16,4 @@ NonconvexCore:
 This package now only re-exports NonconvexCore, so existing code with
 `using NonconvexUtils` continues to work unchanged. New code should use
 `using NonconvexCore` directly.
+
