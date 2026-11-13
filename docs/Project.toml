@@ -1,0 +1,6 @@
+[deps]
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+NonconvexUtils = "c48e48a2-1f5e-44ff-8799-c8e168d11d1b"
+
+[compat]
+Documenter = "1"
