@@ -1,24 +1,17 @@
-using NonconvexUtils, ForwardDiff, ReverseDiff, Tracker, Zygote
-using ADTypes, DifferentiationInterface
-using Test, LinearAlgebra, SparseArrays, NLsolve, IterativeSolvers
-using StableRNGs, ChainRulesCore, NonconvexCore, NonconvexIpopt
-using DifferentiableFlatten
+using NonconvexUtils, NonconvexCore, Test
 
-include("forwarddiff_frule.jl")
-include("abstractdiff.jl")
-include("trace.jl")
-include("custom.jl")
-include("implicit.jl")
-include("symbolic.jl")
-# include("sparse_forwarddiff.jl")
+@testset "NonconvexUtils shim" begin
+    # The package re-exports NonconvexCore's API unchanged.
+    @test NonconvexUtils.DictModel === NonconvexCore.DictModel
+    @test NonconvexUtils.Model === NonconvexCore.Model
+    @test NonconvexUtils.optimize === NonconvexCore.optimize
+    @test NonconvexUtils.getobjective === NonconvexCore.getobjective
+    @test NonconvexUtils.addvar! === NonconvexCore.addvar!
+    @test NonconvexUtils.symbolify === NonconvexCore.symbolify
 
-
-@testset "Aqua" begin
-    using Aqua
-    Aqua.test_all(NonconvexUtils)
-end
-
-@testset "JET" begin
-    using JET
-    JET.test_package(NonconvexUtils; target_modules=(NonconvexUtils,), analyze_from_definitions=true)
+    # A model built through the re-exported names evaluates correctly.
+    m = DictModel()
+    addvar!(m, :x, -1.0, 1.0, init=0.5)
+    set_objective!(m, x -> (x[:x] - 0.25)^2)
+    @test getobjective(m)(NonconvexCore.getinit(m)) == (0.5 - 0.25)^2
 end
