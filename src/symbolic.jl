@@ -33,7 +33,12 @@ function SymbolicFunction(
     val = f(_x)
     _T = eltype(val)
     T = x -> begin
-        if (eltype(x) <: Symbolics.Num) || eltype(x) === _T
+        if (eltype(x) <: Symbolics.Num) || eltype(x) === _T ||
+           eltype(x) <: ForwardDiff.Dual
+            # Symbolic inputs, the target element type, and ForwardDiff duals
+            # pass through untouched: nested/second-order AD re-runs the
+            # generated functions at Dual points, and converting duals to `_T`
+            # would strip or crash on their partials.
             return x
         elseif x isa SparseMatrixCSC && !(x isa Real) && nnz(x) == 0
             return SparseMatrixCSC(x.m, x.n, x.colptr, x.rowval, _T[])

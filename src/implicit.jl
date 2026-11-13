@@ -7,6 +7,14 @@ end
 _unthunk(x::NamedTuple) = map(_unthunk, x)
 _unthunk(x::Tuple) = map(_unthunk, x)
 
+# The `conditions` argument is a function slot: a closure that captures
+# nothing gets a zero cotangent (NoTangent or raw nothing) with no fields to
+# splat, so keep zeros as-is instead of splatting their backing, which is
+# `nothing` in some ChainRulesCore versions.
+_conditions_cotangent(::Any, ::Nothing) = ChainRulesCore.NoTangent()
+_conditions_cotangent(::Any, ∇f::ChainRulesCore.AbstractZero) = ∇f
+_conditions_cotangent(C, ∇f) = ChainRulesCore.Tangent{C}(; ChainRulesCore.backing(∇f)...)
+
 # Parameters x, variables y, residuals f
 struct ImplicitFunction{matrixfree,F,C,L,T,B} <: Function
     # A function which takes x as input and returns a tuple (ystar, df/dy) such that f(x, ystar) = 0. df/dy is optional and can be replaced by nothing to compute it via automatic differentiation. Jacobian should only be returned if it's more cheaply available than using AD, e.g. when using BFGS approximation of the Hessian in IPOPT.
@@ -106,7 +114,7 @@ function ChainRulesCore.rrule(
             ∇f, ∇x = Base.tail(pbx(f.linear_solver(dfdy', -flatten(∇)[1])))
         end
         ∇imf = Tangent{typeof(f)}(
-            conditions = Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...),
+            conditions = _conditions_cotangent(typeof(f.conditions), _unthunk(∇f)),
         )
         if norm(residual) <= f.tol
             return (∇imf, ∇x)
@@ -165,7 +173,7 @@ function ChainRulesCore.rrule(
             ∇f = pbf(f.linear_solver(dfdy', -flatten(∇)[1]))[2]
         end
         ∇imf = Tangent{typeof(f)}(
-            conditions = Tangent{typeof(f.conditions)}(; ChainRulesCore.backing(∇f)...),
+            conditions = _conditions_cotangent(typeof(f.conditions), _unthunk(∇f)),
         )
         if norm(residual) <= f.tol
             return (∇imf,)

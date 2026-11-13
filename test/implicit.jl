@@ -130,6 +130,27 @@
         end
     end
 
+    @testset "Non-capturing conditions cotangent" begin
+        # A `conditions` closure that captures nothing produces a zero
+        # cotangent for its function slot; the rrule must keep that zero
+        # as-is instead of splatting its backing (which can be `nothing`).
+        conditions = (x, y) -> y .^ 2 - x
+        for matrixfree in (false, true)
+            forward = x -> (sqrt.(x), nothing)
+            imf = ImplicitFunction(forward, conditions; matrixfree)
+            x = rand(3)
+            g_auto = Zygote.gradient(x -> sum(imf(x)), x)[1]
+            @test g_auto ≈ 1 ./ (2 .* sqrt.(x))
+
+            # The zero-argument rule's pullback must accept the same seed.
+            imf0 = ImplicitFunction(() -> (ones(3), nothing), y -> y .^ 2 .- 1.0; matrixfree)
+            _, pb = ChainRulesCore.rrule(Zygote.ZygoteRuleConfig(), imf0)
+            ∇imf, = pb(ones(3))
+            @test ∇imf isa ChainRulesCore.Tangent
+            @test ∇imf.conditions isa ChainRulesCore.AbstractZero
+        end
+    end
+
     @testset "Closure conditions" begin
         @testset "Vector input and output - Jacobian $jac - matrixfree $matrixfree" for jac in
                                                                                         (

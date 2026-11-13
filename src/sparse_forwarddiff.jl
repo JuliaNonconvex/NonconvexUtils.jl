@@ -133,10 +133,10 @@ function ChainRulesCore.rrule(f::SparseForwardDiffFunction, x::AbstractVector)
         )
     end
     val = f(x)
+    # `f.jac` stores only the sparsity structure (its values are never read);
+    # recompute the Jacobian each call so concurrent rule evaluations do not
+    # race on a shared cache.
     jac = J(x)
-    if eltype(f.jac) === eltype(jac)
-        nograd_cache!(f.jac, jac)
-    end
     return val, Δ -> begin
         if val isa Real
             (NoTangent(), jac' * Δ)
@@ -171,10 +171,10 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
         )
     end
     val = f(x)
+    # `f.jac` stores only the sparsity structure (its values are never read);
+    # recompute the Jacobian each call so concurrent rule evaluations do not
+    # race on a shared cache.
     jac = J(x)
-    if eltype(f.jac) === eltype(jac)
-        nograd_cache!(f.jac, jac)
-    end
     if val isa Real
         Δy = only(jac * Δx)
     elseif val isa AbstractVector
@@ -192,17 +192,6 @@ function ChainRulesCore.frule((_, Δx), f::SparseForwardDiffFunction, x::Abstrac
     return val, project_to(Δy)
 end
 @ForwardDiff_frule (f::SparseForwardDiffFunction)(x::AbstractVector{<:ForwardDiff.Dual})
-
-function nograd_cache!(A, B)
-    A .= B
-    return A
-end
-function ChainRulesCore.frule(_, ::typeof(nograd_cache!), A, B)
-    nograd_cache!(A, B), NoTangent()
-end
-function ChainRulesCore.rrule(::typeof(nograd_cache!), A, B)
-    nograd_cache!(A, B), _ -> (NoTangent(), NoTangent(), NoTangent())
-end
 
 function sparsify(f, x...; flatteny = true, kwargs...)
     flat_f, vx, unflatteny = tovecfunc(f, x...; flatteny)

@@ -55,6 +55,19 @@ end
         @test Zygote.hessian(g, x) ≈ ForwardDiff.hessian(g, x)
     end
 
+    @testset "Nested AD through the generated gradient" begin
+        # Second-order AD re-runs the generated gradient at ForwardDiff.Dual
+        # points; the element-type conversion in the generated functions must
+        # pass duals through instead of converting them to `_T`.
+        for sparse in (false, true)
+            sf = symbolify(x -> sum(x .^ 2) + x[1] * x[2], rand(3); hessian = true, sparse)
+            x = rand(3)
+            h_auto = ForwardDiff.gradient(y -> sum(sf.flat_f.g(y)), x)
+            h_analytic = ForwardDiff.hessian(y -> sum(y .^ 2) + y[1] * y[2], x) * ones(3)
+            @test h_auto ≈ h_analytic
+        end
+    end
+
     @testset "Model - first order = $first_order - sparse = $sparse" for first_order in
                                                                          (true, false),
         sparse in (true, false)
