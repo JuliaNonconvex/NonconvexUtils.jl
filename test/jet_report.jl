@@ -22,9 +22,7 @@ for arg in ARGS
 end
 
 # Run JET analysis
-report = JET.report_package(
-    NonconvexUtils; target_modules=(NonconvexUtils,)
-)
+report = JET.report_package(NonconvexUtils; target_modules=(NonconvexUtils,))
 
 # Restrict the report to issues that originate in NonconvexUtils'
 # own source. `report_package` also analyzes the dependency closure,
