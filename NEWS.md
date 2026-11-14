@@ -1,5 +1,11 @@
 # NEWS
 
+## 1.2.0
+
+- Became a re-export shim of NonconvexCore (the package's functionality is
+  absorbed by NonconvexCore); adopted the JET, Aqua and formatting setup;
+  scheduled formatter workflow.
+
 ## 1.1.2
 
 - Added tests for the previously untested `@ForwardDiff_frule` bridge cases:
