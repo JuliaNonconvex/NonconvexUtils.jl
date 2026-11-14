@@ -14,6 +14,7 @@ NonconvexCore:
   extension (load Symbolics to activate it).
 
 This package now only re-exports NonconvexCore, so existing code with
-`using NonconvexUtils` continues to work unchanged. New code should use
-`using NonconvexCore` directly. See the
+`using NonconvexUtils` mostly continues to work unchanged. **One breaking
+rename:** the AD wrapper `diffiy` is now called `NonconvexCore.diffy`. New
+code should use `using NonconvexCore` directly. See the
 [Nonconvex.jl documentation](https://julianonconvex.github.io/Nonconvex.jl/).
