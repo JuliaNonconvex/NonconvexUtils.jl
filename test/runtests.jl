@@ -15,3 +15,7 @@ using NonconvexUtils, NonconvexCore, Test
     set_objective!(m, x -> (x[:x] - 0.25)^2)
     @test getobjective(m)(NonconvexCore.getinit(m)) == (0.5 - 0.25)^2
 end
+
+@testset "Aqua" begin
+    include("aqua.jl")
+end
